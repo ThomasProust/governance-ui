@@ -19,6 +19,7 @@ import Input from '@components/inputs/Input'
 import Select from '@components/inputs/Select'
 import Textarea from '@components/inputs/Textarea'
 import TokenBalanceCardWrapper from '@components/TokenBalance/TokenBalanceCardWrapper'
+import useCreateProposal from '@hooks/useCreateProposal'
 import useGovernanceAssets from '@hooks/useGovernanceAssets'
 import useQueryContext from '@hooks/useQueryContext'
 import useRealm from '@hooks/useRealm'
@@ -30,6 +31,7 @@ import {
   InstructionsContext,
   UiInstruction,
 } from '@utils/uiTypes/proposalCreationTypes'
+
 import useWalletStore from 'stores/useWalletStore'
 import { notify } from 'utils/notifications'
 import Clawback from 'VoteStakeRegistry/components/instructions/Clawback'
@@ -39,9 +41,16 @@ import ProgramUpgrade from './components/instructions/bpfUpgradeableLoader/Progr
 import CreateAssociatedTokenAccount from './components/instructions/CreateAssociatedTokenAccount'
 import CustomBase64 from './components/instructions/CustomBase64'
 import Empty from './components/instructions/Empty'
+import FriktionDeposit from './components/instructions/Friktion/FriktionDeposit'
+import MakeAddOracle from './components/instructions/Mango/MakeAddOracle'
+import MakeAddSpotMarket from './components/instructions/Mango/MakeAddSpotMarket'
 import MakeChangeMaxAccounts from './components/instructions/Mango/MakeChangeMaxAccounts'
+import MakeChangePerpMarket from './components/instructions/Mango/MakeChangePerpMarket'
+import MakeChangeSpotMarket from './components/instructions/Mango/MakeChangeSpotMarket'
+import MakeCreatePerpMarket from './components/instructions/Mango/MakeCreatePerpMarket'
 import MakeChangeReferralFeeParams from './components/instructions/Mango/MakeChangeReferralFeeParams'
 import Mint from './components/instructions/Mint'
+import AddLiquidityToPoolRaydium from './components/instructions/Raydium/AddLiquidityToPool'
 import CreateObligationAccount from './components/instructions/Solend/CreateObligationAccount'
 import DepositReserveLiquidityAndObligationCollateral from './components/instructions/Solend/DepositReserveLiquidityAndObligationCollateral'
 import InitObligationAccount from './components/instructions/Solend/InitObligationAccount'
@@ -50,13 +59,6 @@ import RefreshReserve from './components/instructions/Solend/RefreshReserve'
 import WithdrawObligationCollateralAndRedeemReserveLiquidity from './components/instructions/Solend/WithdrawObligationCollateralAndRedeemReserveLiquidity'
 import SplTokenTransfer from './components/instructions/SplTokenTransfer'
 import VoteBySwitch from './components/VoteBySwitch'
-import FriktionDeposit from './components/instructions/Friktion/FriktionDeposit'
-import MakeChangePerpMarket from './components/instructions/Mango/MakeChangePerpMarket'
-import MakeAddOracle from './components/instructions/Mango/MakeAddOracle'
-import MakeAddSpotMarket from './components/instructions/Mango/MakeAddSpotMarket'
-import MakeChangeSpotMarket from './components/instructions/Mango/MakeChangeSpotMarket'
-import MakeCreatePerpMarket from './components/instructions/Mango/MakeCreatePerpMarket'
-import useCreateProposal from '@hooks/useCreateProposal'
 
 const schema = yup.object().shape({
   title: yup.string().required('Title is required'),
@@ -299,6 +301,8 @@ const New = () => {
             governance={governance}
           />
         )
+      case Instructions.AddLiquidityRaydium:
+        return <AddLiquidityToPoolRaydium index={idx} governance={governance} />
       case Instructions.Mint:
         return <Mint index={idx} governance={governance}></Mint>
       case Instructions.Base64:

@@ -14,6 +14,7 @@ import { SupportedMintName } from '@tools/sdk/solend/configuration'
 import { SplTokenUIName } from '@utils/splTokens'
 import { DepositWithMintAccount, Voter } from 'VoteStakeRegistry/sdk/accounts'
 import { LockupKind } from 'VoteStakeRegistry/tools/types'
+import { AmountSide } from '@raydium-io/raydium-sdk'
 
 export interface UiInstruction {
   serializedInstruction: string
@@ -222,6 +223,15 @@ export interface RefreshReserveForm {
   mintName?: SupportedMintName
 }
 
+export interface AddLiquidityRaydiumForm {
+  governedAccount: GovernedMultiTypeAccount | undefined
+  liquidityPool: string
+  baseAmountIn: number
+  quoteAmountIn: number
+  fixedSide: AmountSide
+  slippage: number
+}
+
 export enum Instructions {
   Transfer,
   ProgramUpgrade,
@@ -245,6 +255,7 @@ export enum Instructions {
   WithdrawObligationCollateralAndRedeemReserveLiquidity,
   RefreshSolendObligation,
   RefreshSolendReserve,
+  AddLiquidityRaydium,
 }
 
 export type createParams = [
