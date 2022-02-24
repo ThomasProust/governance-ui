@@ -75,7 +75,7 @@ export default function useMembers() {
         .filter((x) => x)
         .map((r) => {
           const publicKey = r!.owner
-          const data = Buffer.from(r!.data)
+          const data = Buffer.from(r!.data as Buffer)
           const account = parseTokenAccountData(r!.owner, data)
           return { publicKey, account }
         })
