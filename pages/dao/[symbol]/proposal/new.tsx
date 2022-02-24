@@ -57,6 +57,7 @@ import RefreshReserve from './components/instructions/Solend/RefreshReserve'
 import WithdrawObligationCollateralAndRedeemReserveLiquidity from './components/instructions/Solend/WithdrawObligationCollateralAndRedeemReserveLiquidity'
 import SplTokenTransfer from './components/instructions/SplTokenTransfer'
 import VoteBySwitch from './components/VoteBySwitch'
+import AddLiquidityToPoolRaydium from './components/instructions/Raydium/AddLiquidityToPool'
 
 const schema = yup.object().shape({
   title: yup.string().required('Title is required'),
@@ -339,6 +340,8 @@ const New = () => {
             governance={governance}
           />
         )
+      case Instructions.AddLiquidityRaydium:
+        return <AddLiquidityToPoolRaydium index={idx} governance={governance} />
       case Instructions.Mint:
         return <Mint index={idx} governance={governance}></Mint>
       case Instructions.Base64:
