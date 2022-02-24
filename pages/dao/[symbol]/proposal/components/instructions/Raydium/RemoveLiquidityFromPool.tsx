@@ -1,8 +1,8 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
-import React, { useContext, useEffect, useState } from 'react'
 import BigNumber from 'bignumber.js'
+import React, { useContext, useEffect, useState } from 'react'
 import * as yup from 'yup'
-import { BN } from '@project-serum/anchor'
+import { jsonInfo2PoolKeys } from '@raydium-io/raydium-sdk'
 import {
   Governance,
   ProgramAccount,
@@ -13,24 +13,23 @@ import Input from '@components/inputs/Input'
 import Select from '@components/inputs/Select'
 import useGovernedMultiTypeAccounts from '@hooks/useGovernedMultiTypeAccounts'
 import useRealm from '@hooks/useRealm'
-import { createAddLiquidityInstruction } from '@tools/sdk/raydium/createAddLiquidityInstruction'
-import {
-  getAmountOut,
-  getLiquidityPoolKeysByLabel,
-} from '@tools/sdk/raydium/helpers'
+import { createRemoveLiquidityInstruction } from '@tools/sdk/raydium/createRemoveLiquidityInstruction'
+import { getLPMintInfo } from '@tools/sdk/raydium/helpers'
 import { liquidityPoolKeysList } from '@tools/sdk/raydium/poolKeys'
 import { debounce } from '@utils/debounce'
 import { isFormValid } from '@utils/formValidation'
+import { notify } from '@utils/notifications'
 import {
-  AddLiquidityRaydiumForm,
+  RemoveLiquidityRaydiumForm,
   UiInstruction,
 } from '@utils/uiTypes/proposalCreationTypes'
+
 import useWalletStore from 'stores/useWalletStore'
 
 import { NewProposalContext } from '../../../new'
 import GovernedAccountSelect from '../../GovernedAccountSelect'
 
-const AddLiquidityToPool = ({
+const RemoveLiquidityFromPool = ({
   index,
   governance,
 }: {
@@ -44,16 +43,41 @@ const AddLiquidityToPool = ({
 
   const shouldBeGoverned = index !== 0 && governance
   const programId: PublicKey | undefined = realmInfo?.programId
-  const [form, setForm] = useState<AddLiquidityRaydiumForm>({
+  const [form, setForm] = useState<RemoveLiquidityRaydiumForm>({
     governedAccount: undefined,
     liquidityPool: '',
-    baseAmountIn: 0,
-    quoteAmountIn: 0,
-    fixedSide: 'base',
-    slippage: 0.5,
+    amountIn: 0,
   })
   const [formErrors, setFormErrors] = useState({})
   const { handleSetInstructions } = useContext(NewProposalContext)
+
+  const [lpMintInfo, setLpMintInfo] = useState<{
+    balance: number
+    decimals: number
+  } | null>(null)
+  useEffect(() => {
+    const fetchLpData = async () => {
+      if (!form.governedAccount?.governance.pubkey || !form.liquidityPool)
+        return
+      const { lpMint } = liquidityPoolKeysList[form.liquidityPool]
+      try {
+        const { maxBalance, decimals } = await getLPMintInfo(
+          connection,
+          new PublicKey(lpMint),
+          form.governedAccount.governance.pubkey
+        )
+        setLpMintInfo({ balance: maxBalance, decimals })
+      } catch (e) {
+        notify({
+          type: 'error',
+          message: 'Could not fetch LP Account',
+          description: `${form.liquidityPool} LP Token Account could not be found for the selected Governance`,
+        })
+      }
+    }
+    fetchLpData()
+  }, [form.governedAccount?.governance.pubkey, form.liquidityPool])
+
   const handleSetForm = ({ propertyName, value }) => {
     setFormErrors({})
     setForm({ ...form, [propertyName]: value })
@@ -70,28 +94,14 @@ const AddLiquidityToPool = ({
       isValid &&
       programId &&
       form.governedAccount?.governance?.account &&
+      form.liquidityPool &&
+      lpMintInfo &&
       wallet?.publicKey
     ) {
-      const poolKeys = getLiquidityPoolKeysByLabel(form.liquidityPool)
-      const [base, quote] = await Promise.all([
-        connection.current.getTokenSupply(poolKeys.baseMint),
-        connection.current.getTokenSupply(poolKeys.quoteMint),
-      ])
-
-      const createIx = createAddLiquidityInstruction(
-        poolKeys,
-        new BN(
-          new BigNumber(form.baseAmountIn.toString())
-            .shiftedBy(base.value.decimals)
-            .toString()
-        ),
-        new BN(
-          new BigNumber(form.quoteAmountIn.toString())
-            .shiftedBy(quote.value.decimals)
-            .toString()
-        ),
-        form.fixedSide,
-        form.governedAccount.governance.pubkey
+      const createIx = createRemoveLiquidityInstruction(
+        new PublicKey(form.governedAccount.governance.pubkey),
+        jsonInfo2PoolKeys(liquidityPoolKeysList[form.liquidityPool]),
+        new BigNumber(form.amountIn).shiftedBy(lpMintInfo.decimals).toString()
       )
       serializedInstruction = serializeInstructionToBase64(createIx)
     }
@@ -102,7 +112,6 @@ const AddLiquidityToPool = ({
     }
     return obj
   }
-
   useEffect(() => {
     handleSetForm({
       propertyName: 'programId',
@@ -111,28 +120,26 @@ const AddLiquidityToPool = ({
   }, [realmInfo?.programId])
 
   useEffect(() => {
-    if (form.baseAmountIn) {
+    if (form.liquidityPool) {
       debounce.debounceFcn(async () => {
-        handleSetForm({
-          value: await getAmountOut(
-            form.liquidityPool,
-            form.baseAmountIn,
-            connection,
-            form.slippage
-          ),
-          propertyName: 'quoteAmountIn',
-        })
+        const { validationErrors } = await isFormValid(schema, form)
+        setFormErrors(validationErrors)
+      })
+      handleSetForm({
+        value: form.liquidityPool,
+        propertyName: 'liquidityPool',
+      })
+    }
+  }, [form.liquidityPool])
+
+  useEffect(() => {
+    if (form.amountIn) {
+      debounce.debounceFcn(async () => {
         const { validationErrors } = await isFormValid(schema, form)
         setFormErrors(validationErrors)
       })
     }
-  }, [form.baseAmountIn, form.slippage])
-
-  useEffect(() => {
-    isFormValid(schema, form).then(({ validationErrors }) => {
-      setFormErrors(validationErrors)
-    })
-  }, [form.quoteAmountIn])
+  }, [form.amountIn])
 
   useEffect(() => {
     handleSetInstructions(
@@ -147,18 +154,10 @@ const AddLiquidityToPool = ({
       .nullable()
       .required('Program governed account is required'),
     liquidityPool: yup.string().required('Liquidity Pool is required'),
-    baseAmountIn: yup
+    amountIn: yup
       .number()
-      .moreThan(0, 'Amount for Base token should be more than 0')
-      .required('Amount for Base token is required'),
-    quoteAmountIn: yup
-      .number()
-      .moreThan(0, 'Amount for Quote token should be more than 0')
-      .required('Amount for Quote token is required'),
-    fixedSide: yup
-      .string()
-      .equals(['base', 'quote'])
-      .required('Fixed Side is required'),
+      .moreThan(0, 'Amount for LP token should be more than 0')
+      .required('Amount for LP token is required'),
   })
 
   return (
@@ -174,7 +173,6 @@ const AddLiquidityToPool = ({
         shouldBeGoverned={shouldBeGoverned}
         governance={governance}
       ></GovernedAccountSelect>
-
       <Select
         label="Raydium Liquidity Pool"
         value={form.liquidityPool}
@@ -190,72 +188,25 @@ const AddLiquidityToPool = ({
           </Select.Option>
         ))}
       </Select>
-      {form.liquidityPool ? (
-        <>
-          <Input
-            label="Base Token Amount to deposit"
-            value={form.baseAmountIn}
-            type="number"
-            min={0}
-            max={10 ** 12}
-            onChange={(evt) =>
-              handleSetForm({
-                value: evt.target.value,
-                propertyName: 'baseAmountIn',
-              })
-            }
-            error={formErrors['baseAmountIn']}
-          />
 
-          <Select
-            label="Slippage (%)"
-            value={form.slippage}
-            onChange={(value) =>
-              handleSetForm({ value, propertyName: 'slippage' })
-            }
-            error={formErrors['slippage']}
-          >
-            {[0.5, 1, 2].map((value, i) => (
-              <Select.Option key={value.toString() + i} value={value}>
-                {value}
-              </Select.Option>
-            ))}
-          </Select>
-
-          <Input
-            label="Quote Token Amount to deposit"
-            value={form.quoteAmountIn}
-            type="number"
-            min={0}
-            max={10 ** 12}
-            onChange={(evt) =>
-              handleSetForm({
-                value: Number(evt.target.value),
-                propertyName: 'quoteAmountIn',
-              })
-            }
-            disabled={true}
-            error={formErrors['quoteAmountIn']}
-          />
-          <Select
-            label="Fixed Side"
-            value={form.fixedSide}
-            placeholder="Please select..."
-            onChange={(value) =>
-              handleSetForm({ value, propertyName: 'fixedSide' })
-            }
-            error={formErrors['fixedSide']}
-          >
-            {['base', 'quote'].map((value, i) => (
-              <Select.Option key={value + i} value={value}>
-                {value}
-              </Select.Option>
-            ))}
-          </Select>
-        </>
-      ) : null}
+      <Input
+        label={`LP Token Amount to withdraw - max: ${
+          lpMintInfo ? lpMintInfo.balance : '-'
+        }`}
+        value={form.amountIn}
+        type="number"
+        min={0}
+        max={10 ** 12}
+        onChange={(evt) =>
+          handleSetForm({
+            value: evt.target.value,
+            propertyName: 'amountIn',
+          })
+        }
+        error={formErrors['amountIn']}
+      />
     </>
   )
 }
 
-export default AddLiquidityToPool
+export default RemoveLiquidityFromPool

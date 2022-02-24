@@ -232,6 +232,12 @@ export interface AddLiquidityRaydiumForm {
   slippage: number
 }
 
+export interface RemoveLiquidityRaydiumForm {
+  governedAccount: GovernedMultiTypeAccount | undefined
+  liquidityPool: string
+  amountIn: number
+}
+
 export enum Instructions {
   Transfer,
   ProgramUpgrade,
@@ -256,6 +262,7 @@ export enum Instructions {
   RefreshSolendObligation,
   RefreshSolendReserve,
   AddLiquidityRaydium,
+  RemoveLiquidityRaydium,
 }
 
 export type createParams = [

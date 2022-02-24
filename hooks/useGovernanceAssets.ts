@@ -242,6 +242,11 @@ export default function useGovernanceAssets() {
       isVisible: canUseAnyInstruction,
     },
     {
+      id: Instructions.RemoveLiquidityRaydium,
+      name: 'Raydium: Remove From Liquidity Pool',
+      isVisible: false, // At the moment, the itx is too big to fit a proposal
+    },
+    {
       id: Instructions.ProgramUpgrade,
       name: 'Upgrade Program',
       isVisible: canUseProgramUpgradeInstruction,
