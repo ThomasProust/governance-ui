@@ -49,6 +49,7 @@ import Empty from './components/instructions/Empty'
 import MakeChangeMaxAccounts from './components/instructions/Mango/MakeChangeMaxAccounts'
 import MakeChangeReferralFeeParams from './components/instructions/Mango/MakeChangeReferralFeeParams'
 import Mint from './components/instructions/Mint'
+import AddLiquidityToPoolRaydium from './components/instructions/Raydium/AddLiquidityToPool'
 import CreateObligationAccount from './components/instructions/Solend/CreateObligationAccount'
 import DepositReserveLiquidityAndObligationCollateral from './components/instructions/Solend/DepositReserveLiquidityAndObligationCollateral'
 import InitObligationAccount from './components/instructions/Solend/InitObligationAccount'
@@ -57,7 +58,6 @@ import RefreshReserve from './components/instructions/Solend/RefreshReserve'
 import WithdrawObligationCollateralAndRedeemReserveLiquidity from './components/instructions/Solend/WithdrawObligationCollateralAndRedeemReserveLiquidity'
 import SplTokenTransfer from './components/instructions/SplTokenTransfer'
 import VoteBySwitch from './components/VoteBySwitch'
-import AddLiquidityToPoolRaydium from './components/instructions/Raydium/AddLiquidityToPool'
 
 const schema = yup.object().shape({
   title: yup.string().required('Title is required'),
