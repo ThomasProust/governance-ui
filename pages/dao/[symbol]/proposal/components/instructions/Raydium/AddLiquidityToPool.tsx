@@ -1,33 +1,35 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 import React, { useContext, useEffect, useState } from 'react'
-import useRealm from '@hooks/useRealm'
-import { PublicKey } from '@solana/web3.js'
+import BigNumber from 'bignumber.js'
 import * as yup from 'yup'
-import { isFormValid } from '@utils/formValidation'
+
+import { BN } from '@project-serum/anchor'
 import {
-  UiInstruction,
-  AddLiquidityRaydiumForm,
-} from '@utils/uiTypes/proposalCreationTypes'
-import { NewProposalContext } from '../../../new'
-import useWalletStore from 'stores/useWalletStore'
-import Input from '@components/inputs/Input'
-import { debounce } from '@utils/debounce'
-import Select from '@components/inputs/Select'
-import {
+  Governance,
   ProgramAccount,
   serializeInstructionToBase64,
-  Governance,
 } from '@solana/spl-governance'
-import GovernedAccountSelect from '../../GovernedAccountSelect'
+import { PublicKey } from '@solana/web3.js'
+import Input from '@components/inputs/Input'
+import Select from '@components/inputs/Select'
+import useGovernedMultiTypeAccounts from '@hooks/useGovernedMultiTypeAccounts'
+import useRealm from '@hooks/useRealm'
 import { createAddLiquidityInstruction } from '@tools/sdk/raydium/createAddLiquidityInstruction'
 import {
   getAmountOut,
   getLiquidityPoolKeysByLabel,
 } from '@tools/sdk/raydium/helpers'
 import { liquidityPoolKeysList } from '@tools/sdk/raydium/poolKeys'
-import { BN } from '@project-serum/anchor'
-import BigNumber from 'bignumber.js'
-import useGovernedMultiTypeAccounts from '@hooks/useGovernedMultiTypeAccounts'
+import { debounce } from '@utils/debounce'
+import { isFormValid } from '@utils/formValidation'
+import {
+  AddLiquidityRaydiumForm,
+  UiInstruction,
+} from '@utils/uiTypes/proposalCreationTypes'
+import useWalletStore from 'stores/useWalletStore'
+
+import { NewProposalContext } from '../../../new'
+import GovernedAccountSelect from '../../GovernedAccountSelect'
 
 const AddLiquidityToPool = ({
   index,
