@@ -497,7 +497,7 @@ const useWalletStore = create<WalletStore>((set, get) => ({
             `Missing tokenAccountMintInfo: ${publicKey.toBase58()}`
           )
         }
-        const data = Buffer.from(tokenAccountMintInfo.data)
+        const data = Buffer.from(tokenAccountMintInfo.data as Buffer)
         const parsedMintInfo = parseMintAccountData(data) as MintInfo
         tokenMints.push({
           publicKey,
@@ -530,7 +530,7 @@ const useWalletStore = create<WalletStore>((set, get) => ({
         if (!tokenAccountInfo) {
           throw new Error(`Missing tokenAccountInfo: ${publicKey.toBase58()}`)
         }
-        const data = Buffer.from(tokenAccountInfo.data)
+        const data = Buffer.from(tokenAccountInfo.data as Buffer)
         const ProgramAccountInfo = parseTokenAccountData(
           publicKey,
           data

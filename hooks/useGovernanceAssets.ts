@@ -105,7 +105,7 @@ export default function useGovernanceAssets() {
           `Missing mintAccountInfo for: ${governance.pubkey.toBase58()}`
         )
       }
-      const data = Buffer.from(mintAccountInfo.data)
+      const data = Buffer.from(mintAccountInfo.data as Buffer)
       const parsedMintInfo = parseMintAccountData(data) as MintInfo
       const obj = {
         governance,
