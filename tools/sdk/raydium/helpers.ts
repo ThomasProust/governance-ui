@@ -29,13 +29,13 @@ export const getAmountOut = async (
       .shiftedBy(base.value.decimals)
       .toString()
   )
-  const { minAmountOut } = Liquidity.computeAmountOut({
+  const { minAmountOut } = Liquidity.computeCurrencyAmountOut({
     poolKeys,
     poolInfo: await Liquidity.fetchInfo({
       connection: connection.current,
       poolKeys,
     }),
-    amountIn: new TokenAmount(
+    currencyAmountIn: new TokenAmount(
       new Token(poolKeys.baseMint, base.value.decimals),
       amountInBN
     ),
@@ -71,4 +71,18 @@ export const getLiquidityPoolKeysByLabel = (
   if (!lp) throw new Error(`pool not found for label ${label}`)
 
   return jsonInfo2PoolKeys(liquidityPoolKeysList[lp])
+}
+
+export const fetchLiquidityPoolData = async ({
+  governanceKey,
+  lp,
+  connection,
+}: {
+  governanceKey?: PublicKey
+  lp?: string
+  connection: ConnectionContext
+}) => {
+  if (!governanceKey || !lp) return { maxBalance: 0, decimals: 0 }
+  const { lpMint } = liquidityPoolKeysList[lp]
+  return getLPMintInfo(connection, new PublicKey(lpMint), governanceKey)
 }

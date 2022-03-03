@@ -26,6 +26,7 @@ import { NewProposalContext } from '../../../new'
 import GovernedAccountSelect from '../../GovernedAccountSelect'
 import { addRaydiumLiquidityPoolSchema } from '../../instructionForm/validationSchemas'
 import useInstructionFormBuilder from '@hooks/useInstructionFormBuilder'
+import SelectOptionList from '../../SelectOptionList'
 
 const AddLiquidityToPool = ({
   index,
@@ -153,11 +154,7 @@ const AddLiquidityToPool = ({
         }
         error={formErrors['liquidityPool']}
       >
-        {Object.keys(liquidityPoolKeysList).map((pool, i) => (
-          <Select.Option key={pool + i} value={pool}>
-            {pool}
-          </Select.Option>
-        ))}
+        <SelectOptionList list={Object.keys(liquidityPoolKeysList)} />
       </Select>
 
       {form.liquidityPool && (
@@ -184,11 +181,7 @@ const AddLiquidityToPool = ({
             }
             error={formErrors['slippage']}
           >
-            {[0.5, 1, 2].map((value) => (
-              <Select.Option key={value.toString()} value={value}>
-                {value}
-              </Select.Option>
-            ))}
+            <SelectOptionList list={[0.5, 1, 2]} />
           </Select>
 
           <Input
@@ -214,11 +207,7 @@ const AddLiquidityToPool = ({
             }
             error={formErrors['fixedSide']}
           >
-            {['base', 'quote'].map((value) => (
-              <Select.Option key={value} value={value}>
-                {value}
-              </Select.Option>
-            ))}
+            <SelectOptionList list={['base', 'quote']} />
           </Select>
         </>
       )}
