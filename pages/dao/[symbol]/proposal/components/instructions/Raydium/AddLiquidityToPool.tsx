@@ -1,15 +1,10 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
-import React, { useContext, useEffect, useState } from 'react'
+import React, { useContext, useEffect } from 'react'
 import BigNumber from 'bignumber.js'
 import { BN } from '@project-serum/anchor'
-import {
-  Governance,
-  ProgramAccount,
-  serializeInstructionToBase64,
-} from '@solana/spl-governance'
+import { serializeInstructionToBase64 } from '@solana/spl-governance'
 import Input from '@components/inputs/Input'
 import Select from '@components/inputs/Select'
-import useGovernedMultiTypeAccounts from '@hooks/useGovernedMultiTypeAccounts'
 import { createAddLiquidityInstruction } from '@tools/sdk/raydium/createAddLiquidityInstruction'
 import {
   getAmountOut,
@@ -23,54 +18,45 @@ import {
 } from '@utils/uiTypes/proposalCreationTypes'
 
 import { NewProposalContext } from '../../../new'
-import GovernedAccountSelect from '../../GovernedAccountSelect'
-import { addRaydiumLiquidityPoolSchema } from '../../instructionForm/validationSchemas'
+import { addRaydiumLiquidityPoolSchema } from '../../schemas/validationSchemas'
 import useInstructionFormBuilder from '@hooks/useInstructionFormBuilder'
 import SelectOptionList from '../../SelectOptionList'
+import { GovernedMultiTypeAccount } from '@utils/tokens'
 
 const AddLiquidityToPool = ({
   index,
-  governance,
+  governanceAccount,
 }: {
   index: number
-  governance: ProgramAccount<Governance> | null
+  governanceAccount: GovernedMultiTypeAccount | undefined
 }) => {
-  const { governedMultiTypeAccounts } = useGovernedMultiTypeAccounts()
-  const shouldBeGoverned = index !== 0 && governance
-  const [form, setForm] = useState<AddLiquidityRaydiumForm>({
-    governedAccount: undefined,
-    liquidityPool: '',
-    baseAmountIn: 0,
-    quoteAmountIn: 0,
-    fixedSide: 'base',
-    slippage: 0.5,
-  })
-
-  const handleFormChange = ({ propertyName, value }) => {
-    setForm({ ...form, [propertyName]: value })
-  }
-
   const {
+    form,
     connection,
+    formErrors,
+    handleSetForm,
     validateForm,
     canSerializeInstruction,
-    handleSetForm,
-    formErrors,
-  } = useInstructionFormBuilder(form, handleFormChange)
+  } = useInstructionFormBuilder<AddLiquidityRaydiumForm>({
+    initialFormValues: {
+      governedAccount: undefined,
+      liquidityPool: '',
+      baseAmountIn: 0,
+      quoteAmountIn: 0,
+      fixedSide: 'base',
+      slippage: 0.5,
+    },
+    schema: addRaydiumLiquidityPoolSchema,
+  })
 
   const { handleSetInstructions } = useContext(NewProposalContext)
 
   async function getInstruction(): Promise<UiInstruction> {
-    if (
-      !(await canSerializeInstruction({
-        form,
-        schema: addRaydiumLiquidityPoolSchema,
-      }))
-    ) {
+    if (!(await canSerializeInstruction())) {
       return {
         serializedInstruction: '',
         isValid: false,
-        governance: form.governedAccount?.governance,
+        governance: governanceAccount?.governance,
       }
     }
 
@@ -115,13 +101,13 @@ const AddLiquidityToPool = ({
           ),
           propertyName: 'quoteAmountIn',
         })
-        await validateForm(addRaydiumLiquidityPoolSchema, form)
+        await validateForm()
       })
     }
   }, [form.baseAmountIn, form.slippage])
 
   useEffect(() => {
-    validateForm(addRaydiumLiquidityPoolSchema, form)
+    validateForm()
   }, [form.quoteAmountIn])
 
   useEffect(() => {
@@ -133,18 +119,6 @@ const AddLiquidityToPool = ({
 
   return (
     <>
-      <GovernedAccountSelect
-        label="Governance"
-        governedAccounts={governedMultiTypeAccounts}
-        onChange={(value) => {
-          handleSetForm({ value, propertyName: 'governedAccount' })
-        }}
-        value={form.governedAccount}
-        error={formErrors['governedAccount']}
-        shouldBeGoverned={shouldBeGoverned}
-        governance={governance}
-      />
-
       <Select
         label="Raydium Liquidity Pool"
         value={form.liquidityPool}

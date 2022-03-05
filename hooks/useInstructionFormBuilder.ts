@@ -1,58 +1,54 @@
+import yup from 'yup'
 import { isFormValid } from '@utils/formValidation'
 import { useEffect, useState } from 'react'
 import useWalletStore from 'stores/useWalletStore'
-import useRealm from './useRealm'
+import { GovernedMultiTypeAccount } from '@utils/tokens'
 
-const useInstructionFormBuilder = (
-  form: any,
-  handleFormChange: (newForm: any) => void
-) => {
+function useInstructionFormBuilder<
+  T extends {
+    governedAccount?: GovernedMultiTypeAccount
+  }
+>({
+  initialFormValues,
+  schema,
+}: {
+  initialFormValues: T
+  schema: yup.ObjectSchema<any>
+}) {
   const connection = useWalletStore((s) => s.connection)
   const wallet = useWalletStore((s) => s.current)
+
+  const [form, setForm] = useState<T>(initialFormValues)
   const [formErrors, setFormErrors] = useState({})
-
-  const { realmInfo } = useRealm()
-
-  const programId = realmInfo?.programId
 
   const handleSetForm = ({ propertyName, value }) => {
     setFormErrors({})
-    handleFormChange({ ...form, [propertyName]: value })
+    setForm({ ...form, [propertyName]: value })
   }
 
-  const validateForm = async (schema, form): Promise<boolean> => {
+  const validateForm = async (): Promise<boolean> => {
     const { isValid, validationErrors } = await isFormValid(schema, form)
     setFormErrors(validationErrors)
     return isValid
   }
 
-  const canSerializeInstruction = async ({
-    form,
-    schema,
-  }: {
-    form: any
-    schema: any
-  }) => {
-    const isValid = await validateForm(schema, form)
+  const canSerializeInstruction = async () => {
+    const isValid = await validateForm()
+
     return (
-      isValid &&
-      programId &&
-      wallet?.publicKey &&
-      form.governedAccount?.governance?.account
+      isValid && wallet?.publicKey && form.governedAccount?.governance?.account
     )
   }
 
   useEffect(() => {
-    handleSetForm({
-      propertyName: 'programId',
-      value: programId?.toString(),
-    })
-  }, [realmInfo?.programId])
+    validateForm()
+  }, [form])
 
   return {
+    form,
+    setForm,
     wallet,
     connection,
-    programId,
     formErrors,
     handleSetForm,
     validateForm,

@@ -2,15 +2,10 @@
 import BigNumber from 'bignumber.js'
 import React, { useContext, useEffect, useState } from 'react'
 import { jsonInfo2PoolKeys } from '@raydium-io/raydium-sdk'
-import {
-  Governance,
-  ProgramAccount,
-  serializeInstructionToBase64,
-} from '@solana/spl-governance'
+import { serializeInstructionToBase64 } from '@solana/spl-governance'
 import { PublicKey } from '@solana/web3.js'
 import Input from '@components/inputs/Input'
 import Select from '@components/inputs/Select'
-import useGovernedMultiTypeAccounts from '@hooks/useGovernedMultiTypeAccounts'
 import { createRemoveLiquidityInstruction } from '@tools/sdk/raydium/createRemoveLiquidityInstruction'
 import { fetchLiquidityPoolData } from '@tools/sdk/raydium/helpers'
 import { liquidityPoolKeysList } from '@tools/sdk/raydium/poolKeys'
@@ -22,36 +17,33 @@ import {
 } from '@utils/uiTypes/proposalCreationTypes'
 
 import { NewProposalContext } from '../../../new'
-import GovernedAccountSelect from '../../GovernedAccountSelect'
 import useInstructionFormBuilder from '@hooks/useInstructionFormBuilder'
-import { removeRaydiumLiquidityPoolSchema } from '../../instructionForm/validationSchemas'
+import { removeRaydiumLiquidityPoolSchema } from '../../schemas/validationSchemas'
 import SelectOptionList from '../../SelectOptionList'
+import { GovernedMultiTypeAccount } from '@utils/tokens'
 
 const RemoveLiquidityFromPool = ({
   index,
-  governance,
+  governanceAccount,
 }: {
   index: number
-  governance: ProgramAccount<Governance> | null
+  governanceAccount: GovernedMultiTypeAccount | undefined
 }) => {
-  const { governedMultiTypeAccounts } = useGovernedMultiTypeAccounts()
-
-  const shouldBeGoverned = index !== 0 && governance
-  const [form, setForm] = useState<RemoveLiquidityRaydiumForm>({
-    governedAccount: undefined,
-    liquidityPool: '',
-    amountIn: 0,
-  })
-  const handleFormChange = ({ propertyName, value }) => {
-    setForm({ ...form, [propertyName]: value })
-  }
   const {
+    form,
     connection,
     formErrors,
     validateForm,
     canSerializeInstruction,
     handleSetForm,
-  } = useInstructionFormBuilder(form, handleFormChange)
+  } = useInstructionFormBuilder<RemoveLiquidityRaydiumForm>({
+    initialFormValues: {
+      governedAccount: governanceAccount,
+      liquidityPool: '',
+      amountIn: 0,
+    },
+    schema: removeRaydiumLiquidityPoolSchema,
+  })
 
   const { handleSetInstructions } = useContext(NewProposalContext)
 
@@ -61,10 +53,10 @@ const RemoveLiquidityFromPool = ({
   } | null>(null)
 
   useEffect(() => {
-    ;(async () => {
+    async function fetchLpMintInfo() {
       try {
         const { maxBalance, decimals } = await fetchLiquidityPoolData({
-          governanceKey: form.governedAccount?.governance.pubkey,
+          governanceKey: governanceAccount?.governance.pubkey,
           lp: form.liquidityPool,
           connection,
         })
@@ -76,23 +68,21 @@ const RemoveLiquidityFromPool = ({
           description: `${form.liquidityPool} LP Token Account could not be found for the selected Governance`,
         })
       }
-    })()
-  }, [form.governedAccount?.governance.pubkey, form.liquidityPool])
+    }
+    fetchLpMintInfo()
+  }, [governanceAccount?.governance.pubkey, form.liquidityPool])
 
   async function getInstruction(): Promise<UiInstruction> {
-    const isSerializable = await canSerializeInstruction({
-      form,
-      schema: removeRaydiumLiquidityPoolSchema,
-    })
+    const isSerializable = await canSerializeInstruction()
     if (!isSerializable || !form.liquidityPool || !lpMintInfo) {
       return {
         serializedInstruction: '',
         isValid: false,
-        governance: form.governedAccount?.governance,
+        governance: governanceAccount?.governance,
       }
     }
     const createIx = createRemoveLiquidityInstruction(
-      new PublicKey(form.governedAccount!.governance.pubkey),
+      new PublicKey(governanceAccount!.governance.pubkey),
       jsonInfo2PoolKeys(liquidityPoolKeysList[form.liquidityPool]),
       new BigNumber(form.amountIn).shiftedBy(lpMintInfo.decimals).toString()
     )
@@ -100,14 +90,14 @@ const RemoveLiquidityFromPool = ({
     return {
       serializedInstruction: serializeInstructionToBase64(createIx),
       isValid: true,
-      governance: form.governedAccount?.governance,
+      governance: governanceAccount?.governance,
     }
   }
 
   useEffect(() => {
     if (form.liquidityPool) {
       debounce.debounceFcn(async () => {
-        await validateForm(removeRaydiumLiquidityPoolSchema, form)
+        await validateForm()
       })
       handleSetForm({
         value: form.liquidityPool,
@@ -119,31 +109,20 @@ const RemoveLiquidityFromPool = ({
   useEffect(() => {
     if (form.amountIn) {
       debounce.debounceFcn(async () => {
-        await validateForm(removeRaydiumLiquidityPoolSchema, form)
+        await validateForm()
       })
     }
   }, [form.amountIn])
 
   useEffect(() => {
     handleSetInstructions(
-      { governedAccount: form.governedAccount?.governance, getInstruction },
+      { governedAccount: governanceAccount?.governance, getInstruction },
       index
     )
   }, [form])
 
   return (
     <>
-      <GovernedAccountSelect
-        label="Governance"
-        governedAccounts={governedMultiTypeAccounts}
-        onChange={(value) => {
-          handleSetForm({ value, propertyName: 'governedAccount' })
-        }}
-        value={form.governedAccount}
-        error={formErrors['governedAccount']}
-        shouldBeGoverned={shouldBeGoverned}
-        governance={governance}
-      />
       <Select
         label="Raydium Liquidity Pool"
         value={form.liquidityPool}

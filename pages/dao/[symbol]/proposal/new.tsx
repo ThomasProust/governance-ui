@@ -34,32 +34,10 @@ import {
 
 import useWalletStore from 'stores/useWalletStore'
 import { notify } from 'utils/notifications'
-import Clawback from 'VoteStakeRegistry/components/instructions/Clawback'
-import Grant from 'VoteStakeRegistry/components/instructions/Grant'
+
 import InstructionContentContainer from './components/InstructionContentContainer'
-import ProgramUpgrade from './components/instructions/bpfUpgradeableLoader/ProgramUpgrade'
-import CreateAssociatedTokenAccount from './components/instructions/CreateAssociatedTokenAccount'
-import CustomBase64 from './components/instructions/CustomBase64'
-import Empty from './components/instructions/Empty'
-import FriktionDeposit from './components/instructions/Friktion/FriktionDeposit'
-import MakeAddOracle from './components/instructions/Mango/MakeAddOracle'
-import MakeAddSpotMarket from './components/instructions/Mango/MakeAddSpotMarket'
-import MakeChangeMaxAccounts from './components/instructions/Mango/MakeChangeMaxAccounts'
-import MakeChangePerpMarket from './components/instructions/Mango/MakeChangePerpMarket'
-import MakeChangeSpotMarket from './components/instructions/Mango/MakeChangeSpotMarket'
-import MakeCreatePerpMarket from './components/instructions/Mango/MakeCreatePerpMarket'
-import MakeChangeReferralFeeParams from './components/instructions/Mango/MakeChangeReferralFeeParams'
-import Mint from './components/instructions/Mint'
-import AddLiquidityToPoolRaydium from './components/instructions/Raydium/AddLiquidityToPool'
-import CreateObligationAccount from './components/instructions/Solend/CreateObligationAccount'
-import DepositReserveLiquidityAndObligationCollateral from './components/instructions/Solend/DepositReserveLiquidityAndObligationCollateral'
-import InitObligationAccount from './components/instructions/Solend/InitObligationAccount'
-import RefreshObligation from './components/instructions/Solend/RefreshObligation'
-import RefreshReserve from './components/instructions/Solend/RefreshReserve'
-import WithdrawObligationCollateralAndRedeemReserveLiquidity from './components/instructions/Solend/WithdrawObligationCollateralAndRedeemReserveLiquidity'
-import SplTokenTransfer from './components/instructions/SplTokenTransfer'
 import VoteBySwitch from './components/VoteBySwitch'
-import RemoveLiquidityFromPoolRaydium from './components/instructions/Raydium/RemoveLiquidityFromPool'
+import ProposalForm from './components/instructions/ProposalForm'
 
 const schema = yup.object().shape({
   title: yup.string().required('Title is required'),
@@ -261,114 +239,6 @@ const New = () => {
     fetchTokenAccountsForSelectedRealmGovernances()
   }, [])
 
-  const getCurrentInstruction = ({ typeId, idx }) => {
-    switch (typeId) {
-      case Instructions.Transfer:
-        return (
-          <SplTokenTransfer
-            index={idx}
-            governance={governance}
-          ></SplTokenTransfer>
-        )
-      case Instructions.ProgramUpgrade:
-        return (
-          <ProgramUpgrade index={idx} governance={governance}></ProgramUpgrade>
-        )
-      case Instructions.CreateAssociatedTokenAccount:
-        return (
-          <CreateAssociatedTokenAccount index={idx} governance={governance} />
-        )
-      case Instructions.DepositIntoVolt:
-        return <FriktionDeposit index={idx} governance={governance} />
-      case Instructions.CreateSolendObligationAccount:
-        return <CreateObligationAccount index={idx} governance={governance} />
-      case Instructions.InitSolendObligationAccount:
-        return <InitObligationAccount index={idx} governance={governance} />
-      case Instructions.DepositReserveLiquidityAndObligationCollateral:
-        return (
-          <DepositReserveLiquidityAndObligationCollateral
-            index={idx}
-            governance={governance}
-          />
-        )
-      case Instructions.RefreshSolendObligation:
-        return <RefreshObligation index={idx} governance={governance} />
-      case Instructions.RefreshSolendReserve:
-        return <RefreshReserve index={idx} governance={governance} />
-      case Instructions.WithdrawObligationCollateralAndRedeemReserveLiquidity:
-        return (
-          <WithdrawObligationCollateralAndRedeemReserveLiquidity
-            index={idx}
-            governance={governance}
-          />
-        )
-      case Instructions.AddLiquidityRaydium:
-        return <AddLiquidityToPoolRaydium index={idx} governance={governance} />
-      case Instructions.RemoveLiquidityRaydium:
-        return (
-          <RemoveLiquidityFromPoolRaydium index={idx} governance={governance} />
-        )
-      case Instructions.Mint:
-        return <Mint index={idx} governance={governance}></Mint>
-      case Instructions.Base64:
-        return <CustomBase64 index={idx} governance={governance}></CustomBase64>
-      case Instructions.None:
-        return <Empty index={idx} governance={governance}></Empty>
-      case Instructions.MangoAddOracle:
-        return (
-          <MakeAddOracle index={idx} governance={governance}></MakeAddOracle>
-        )
-      case Instructions.MangoAddSpotMarket:
-        return (
-          <MakeAddSpotMarket
-            index={idx}
-            governance={governance}
-          ></MakeAddSpotMarket>
-        )
-      case Instructions.MangoChangeMaxAccounts:
-        return (
-          <MakeChangeMaxAccounts
-            index={idx}
-            governance={governance}
-          ></MakeChangeMaxAccounts>
-        )
-      case Instructions.MangoChangePerpMarket:
-        return (
-          <MakeChangePerpMarket
-            index={idx}
-            governance={governance}
-          ></MakeChangePerpMarket>
-        )
-      case Instructions.MangoChangeReferralFeeParams:
-        return (
-          <MakeChangeReferralFeeParams
-            index={idx}
-            governance={governance}
-          ></MakeChangeReferralFeeParams>
-        )
-      case Instructions.MangoChangeSpotMarket:
-        return (
-          <MakeChangeSpotMarket
-            index={idx}
-            governance={governance}
-          ></MakeChangeSpotMarket>
-        )
-      case Instructions.MangoCreatePerpMarket:
-        return (
-          <MakeCreatePerpMarket
-            index={idx}
-            governance={governance}
-          ></MakeCreatePerpMarket>
-        )
-      case Instructions.Grant:
-        return <Grant index={idx} governance={governance}></Grant>
-      case Instructions.Clawback:
-        return <Clawback index={idx} governance={governance}></Clawback>
-      default:
-        null
-    }
-  }
-
   return (
     <div className="grid grid-cols-12 gap-4">
       <div
@@ -468,10 +338,11 @@ const New = () => {
                         idx={idx}
                         instructionsData={instructionsData}
                       >
-                        {getCurrentInstruction({
-                          typeId: instruction.type?.id,
-                          idx,
-                        })}
+                        <ProposalForm
+                          governance={governance}
+                          index={idx}
+                          itxType={instruction.type?.id}
+                        />
                       </InstructionContentContainer>
                       {idx !== 0 && (
                         <LinkButton
