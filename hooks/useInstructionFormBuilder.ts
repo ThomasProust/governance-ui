@@ -41,8 +41,12 @@ function useInstructionFormBuilder<
   }
 
   useEffect(() => {
+    handleSetForm({
+      propertyName: 'governedAccount',
+      value: initialFormValues.governedAccount,
+    })
     validateForm()
-  }, [form])
+  }, [form, initialFormValues.governedAccount])
 
   return {
     form,

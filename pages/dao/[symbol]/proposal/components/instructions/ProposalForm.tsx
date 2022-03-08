@@ -58,23 +58,33 @@ const ProposalForm = ({
         )
       case Instructions.CreateAssociatedTokenAccount:
         return (
-          <CreateAssociatedTokenAccount index={index} governance={governance} />
+          <CreateAssociatedTokenAccount
+            index={index}
+            governanceAccount={governanceAccount}
+          />
         )
       case Instructions.CreateSolendObligationAccount:
-        return <CreateObligationAccount index={index} governance={governance} />
+        return (
+          <CreateObligationAccount
+            index={index}
+            governanceAccount={governanceAccount}
+          />
+        )
       case Instructions.InitSolendObligationAccount:
         return <InitObligationAccount index={index} governance={governance} />
       case Instructions.DepositReserveLiquidityAndObligationCollateral:
         return (
           <DepositReserveLiquidityAndObligationCollateral
             index={index}
-            governance={governance}
+            governanceAccount={governanceAccount}
           />
         )
       case Instructions.RefreshSolendObligation:
         return <RefreshObligation index={index} governance={governance} />
       case Instructions.RefreshSolendReserve:
-        return <RefreshReserve index={index} governance={governance} />
+        return (
+          <RefreshReserve index={index} governanceAccount={governanceAccount} />
+        )
       case Instructions.WithdrawObligationCollateralAndRedeemReserveLiquidity:
         return (
           <WithdrawObligationCollateralAndRedeemReserveLiquidity

@@ -30,3 +30,33 @@ export const removeRaydiumLiquidityPoolSchema = yup.object().shape({
     .moreThan(0, 'Amount for LP token should be more than 0')
     .required('Amount for LP token is required'),
 })
+
+export const createAssociatedTokenAccountSchema = yup.object().shape({
+  governedAccount: yup
+    .object()
+    .nullable()
+    .required('Governed account is required'),
+  splTokenMintUIName: yup.string().required('SPL Token Mint is required'),
+})
+
+export const depositReserveLiquidityAndObligationCollateralSchema = yup
+  .object()
+  .shape({
+    governedAccount: yup
+      .object()
+      .nullable()
+      .required('Governed account is required'),
+    mintName: yup.string().required('Token Name is required'),
+    uiAmount: yup
+      .number()
+      .moreThan(0, 'Amount should be more than 0')
+      .required('Amount is required'),
+  })
+
+export const refreshReserveSchema = yup.object().shape({
+  governedAccount: yup
+    .object()
+    .nullable()
+    .required('Governed account is required'),
+  mintName: yup.string().required('Token Name is required'),
+})
