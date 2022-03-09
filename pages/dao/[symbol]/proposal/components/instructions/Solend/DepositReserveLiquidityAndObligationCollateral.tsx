@@ -1,21 +1,21 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 import React, { useContext, useEffect } from 'react'
 import BigNumber from 'bignumber.js'
+import * as yup from 'yup'
 import { BN } from '@project-serum/anchor'
 import { serializeInstructionToBase64 } from '@solana/spl-governance'
 import Input from '@components/inputs/Input'
 import Select from '@components/inputs/Select'
+import useInstructionFormBuilder from '@hooks/useInstructionFormBuilder'
 import SolendConfiguration from '@tools/sdk/solend/configuration'
 import { depositReserveLiquidityAndObligationCollateral } from '@tools/sdk/solend/depositReserveLiquidityAndObligationCollateral'
+import { GovernedMultiTypeAccount } from '@utils/tokens'
 import {
   DepositReserveLiquidityAndObligationCollateralForm,
   UiInstruction,
 } from '@utils/uiTypes/proposalCreationTypes'
 import { NewProposalContext } from '../../../new'
-import useInstructionFormBuilder from '@hooks/useInstructionFormBuilder'
-import { depositReserveLiquidityAndObligationCollateralSchema } from '../../schemas/validationSchemas'
 import SelectOptionList from '../../SelectOptionList'
-import { GovernedMultiTypeAccount } from '@utils/tokens'
 
 const DepositReserveLiquidityAndObligationCollateral = ({
   index,
@@ -36,7 +36,17 @@ const DepositReserveLiquidityAndObligationCollateral = ({
         governedAccount: governanceAccount,
         uiAmount: '0',
       },
-      schema: depositReserveLiquidityAndObligationCollateralSchema,
+      schema: yup.object().shape({
+        governedAccount: yup
+          .object()
+          .nullable()
+          .required('Governed account is required'),
+        mintName: yup.string().required('Token Name is required'),
+        uiAmount: yup
+          .number()
+          .moreThan(0, 'Amount should be more than 0')
+          .required('Amount is required'),
+      }),
     }
   )
 

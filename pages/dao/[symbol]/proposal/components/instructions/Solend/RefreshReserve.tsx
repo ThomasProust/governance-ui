@@ -1,18 +1,17 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 import React, { useContext, useEffect } from 'react'
+import * as yup from 'yup'
 import { serializeInstructionToBase64 } from '@solana/spl-governance'
 import Select from '@components/inputs/Select'
+import useInstructionFormBuilder from '@hooks/useInstructionFormBuilder'
 import SolendConfiguration from '@tools/sdk/solend/configuration'
 import { refreshReserve } from '@tools/sdk/solend/refreshReserve'
+import { GovernedMultiTypeAccount } from '@utils/tokens'
 import {
   RefreshReserveForm,
   UiInstruction,
 } from '@utils/uiTypes/proposalCreationTypes'
-
 import { NewProposalContext } from '../../../new'
-import { refreshReserveSchema } from '../../schemas/validationSchemas'
-import useInstructionFormBuilder from '@hooks/useInstructionFormBuilder'
-import { GovernedMultiTypeAccount } from '@utils/tokens'
 
 const RefreshReserve = ({
   index,
@@ -28,8 +27,16 @@ const RefreshReserve = ({
     handleSetForm,
     canSerializeInstruction,
   } = useInstructionFormBuilder<RefreshReserveForm>({
-    initialFormValues: {},
-    schema: refreshReserveSchema,
+    initialFormValues: {
+      governedAccount: governanceAccount,
+    },
+    schema: yup.object().shape({
+      governedAccount: yup
+        .object()
+        .nullable()
+        .required('Governed account is required'),
+      mintName: yup.string().required('Token Name is required'),
+    }),
   })
 
   const { handleSetInstructions } = useContext(NewProposalContext)

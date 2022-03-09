@@ -1,127 +1,77 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
-import React, { useContext, useEffect, useState } from 'react'
+import React, { useContext, useEffect } from 'react'
 import * as yup from 'yup'
-import {
-  Governance,
-  ProgramAccount,
-  serializeInstructionToBase64,
-} from '@solana/spl-governance'
-import { PublicKey } from '@solana/web3.js'
-import useGovernedMultiTypeAccounts from '@hooks/useGovernedMultiTypeAccounts'
-
-import useRealm from '@hooks/useRealm'
+import { serializeInstructionToBase64 } from '@solana/spl-governance'
+import useInstructionFormBuilder from '@hooks/useInstructionFormBuilder'
 import { initObligationAccount } from '@tools/sdk/solend/initObligationAccount'
-import { isFormValid } from '@utils/formValidation'
+import { GovernedMultiTypeAccount } from '@utils/tokens'
 import {
   InitSolendObligationAccountForm,
   UiInstruction,
 } from '@utils/uiTypes/proposalCreationTypes'
-
-import useWalletStore from 'stores/useWalletStore'
-
 import { NewProposalContext } from '../../../new'
-import GovernedAccountSelect from '../../GovernedAccountSelect'
 
 const InitObligationAccount = ({
   index,
-  governance,
+  governanceAccount,
 }: {
   index: number
-  governance: ProgramAccount<Governance> | null
+  governanceAccount: GovernedMultiTypeAccount | undefined
 }) => {
-  const connection = useWalletStore((s) => s.connection)
-  const wallet = useWalletStore((s) => s.current)
-  const { realmInfo } = useRealm()
-
-  const { governedMultiTypeAccounts } = useGovernedMultiTypeAccounts()
+  const {
+    form,
+    connection,
+    canSerializeInstruction,
+  } = useInstructionFormBuilder<InitSolendObligationAccountForm>({
+    initialFormValues: {
+      governedAccount: governanceAccount,
+    },
+    schema: yup.object().shape({
+      governedAccount: yup
+        .object()
+        .nullable()
+        .required('Governed account is required'),
+    }),
+  })
 
   // Hardcoded gate used to be clear about what cluster is supported for now
   if (connection.cluster !== 'mainnet') {
     return <>This instruction does not support {connection.cluster}</>
   }
 
-  const shouldBeGoverned = index !== 0 && governance
-  const programId: PublicKey | undefined = realmInfo?.programId
-  const [form, setForm] = useState<InitSolendObligationAccountForm>({})
-  const [formErrors, setFormErrors] = useState({})
   const { handleSetInstructions } = useContext(NewProposalContext)
 
-  const handleSetForm = ({ propertyName, value }) => {
-    setFormErrors({})
-    setForm({ ...form, [propertyName]: value })
-  }
-
-  const validateInstruction = async (): Promise<boolean> => {
-    const { isValid, validationErrors } = await isFormValid(schema, form)
-    setFormErrors(validationErrors)
-    return isValid
-  }
-
   async function getInstruction(): Promise<UiInstruction> {
-    const isValid = await validateInstruction()
-
-    if (
-      !connection ||
-      !isValid ||
-      !programId ||
-      !form.governedAccount?.governance?.account ||
-      !wallet?.publicKey
-    ) {
+    if (!(await canSerializeInstruction())) {
       return {
         serializedInstruction: '',
         isValid: false,
-        governance: form.governedAccount?.governance,
+        governance: governanceAccount?.governance,
       }
     }
 
     const tx = await initObligationAccount({
-      obligationOwner: form.governedAccount.governance.pubkey,
+      obligationOwner: governanceAccount!.governance.pubkey,
     })
 
     return {
       serializedInstruction: serializeInstructionToBase64(tx),
       isValid: true,
-      governance: form.governedAccount.governance,
+      governance: governanceAccount!.governance,
     }
   }
 
   useEffect(() => {
-    handleSetForm({
-      propertyName: 'programId',
-      value: programId?.toString(),
-    })
-  }, [programId])
-
-  useEffect(() => {
     handleSetInstructions(
       {
-        governedAccount: form.governedAccount?.governance,
+        governedAccount: governanceAccount?.governance,
         getInstruction,
       },
       index
     )
   }, [form])
 
-  const schema = yup.object().shape({
-    governedAccount: yup
-      .object()
-      .nullable()
-      .required('Governed account is required'),
-  })
-
-  return (
-    <GovernedAccountSelect
-      label="Governance"
-      governedAccounts={governedMultiTypeAccounts}
-      onChange={(value) => {
-        handleSetForm({ value, propertyName: 'governedAccount' })
-      }}
-      value={form.governedAccount}
-      error={formErrors['governedAccount']}
-      shouldBeGoverned={shouldBeGoverned}
-      governance={governance}
-    />
-  )
+  return null
 }
 
 export default InitObligationAccount

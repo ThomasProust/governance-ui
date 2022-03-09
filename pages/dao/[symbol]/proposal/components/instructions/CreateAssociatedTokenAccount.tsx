@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 import React, { useContext, useEffect } from 'react'
+import * as yup from 'yup'
 import { serializeInstructionToBase64 } from '@solana/spl-governance'
 import Select from '@components/inputs/Select'
 import useInstructionFormBuilder from '@hooks/useInstructionFormBuilder'
@@ -11,7 +12,6 @@ import {
   UiInstruction,
 } from '@utils/uiTypes/proposalCreationTypes'
 import { NewProposalContext } from '../../new'
-import { createAssociatedTokenAccountSchema } from '../schemas/validationSchemas'
 
 const CreateAssociatedTokenAccount = ({
   index,
@@ -30,7 +30,13 @@ const CreateAssociatedTokenAccount = ({
     initialFormValues: {
       governedAccount: governanceAccount,
     },
-    schema: createAssociatedTokenAccountSchema,
+    schema: yup.object().shape({
+      governedAccount: yup
+        .object()
+        .nullable()
+        .required('Governed account is required'),
+      splTokenMintUIName: yup.string().required('SPL Token Mint is required'),
+    }),
   })
 
   const { handleSetInstructions } = useContext(NewProposalContext)

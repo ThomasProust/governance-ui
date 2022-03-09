@@ -71,7 +71,12 @@ const ProposalForm = ({
           />
         )
       case Instructions.InitSolendObligationAccount:
-        return <InitObligationAccount index={index} governance={governance} />
+        return (
+          <InitObligationAccount
+            index={index}
+            governanceAccount={governanceAccount}
+          />
+        )
       case Instructions.DepositReserveLiquidityAndObligationCollateral:
         return (
           <DepositReserveLiquidityAndObligationCollateral
@@ -80,7 +85,12 @@ const ProposalForm = ({
           />
         )
       case Instructions.RefreshSolendObligation:
-        return <RefreshObligation index={index} governance={governance} />
+        return (
+          <RefreshObligation
+            index={index}
+            governanceAccount={governanceAccount}
+          />
+        )
       case Instructions.RefreshSolendReserve:
         return (
           <RefreshReserve index={index} governanceAccount={governanceAccount} />
@@ -89,7 +99,7 @@ const ProposalForm = ({
         return (
           <WithdrawObligationCollateralAndRedeemReserveLiquidity
             index={index}
-            governance={governance}
+            governanceAccount={governanceAccount}
           />
         )
       case Instructions.AddLiquidityRaydium:
@@ -139,16 +149,28 @@ const ProposalForm = ({
 
   return (
     <>
-      <GovernedAccountSelect
-        label="Governance"
-        governedAccounts={governedMultiTypeAccounts}
-        onChange={(value) => {
-          setGovernanceAccount(value)
-        }}
-        value={governanceAccount}
-        shouldBeGoverned={shouldBeGoverned}
-        governance={governance}
-      />
+      {![
+        Instructions.Transfer,
+        Instructions.Mint,
+        Instructions.ProgramUpgrade,
+        Instructions.Base64,
+        Instructions.Clawback,
+        Instructions.Grant,
+        Instructions.MangoChangeReferralFeeParams,
+        Instructions.MangoMakeChangeMaxAccounts,
+        Instructions.None,
+      ].includes(itxType) && (
+        <GovernedAccountSelect
+          label="Governance"
+          governedAccounts={governedMultiTypeAccounts}
+          onChange={(value) => {
+            setGovernanceAccount(value)
+          }}
+          value={governanceAccount}
+          shouldBeGoverned={shouldBeGoverned}
+          governance={governance}
+        />
+      )}
       {getCurrentInstruction()}
     </>
   )

@@ -1,11 +1,13 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
-import BigNumber from 'bignumber.js'
 import React, { useContext, useEffect, useState } from 'react'
+import * as yup from 'yup'
+import BigNumber from 'bignumber.js'
 import { jsonInfo2PoolKeys } from '@raydium-io/raydium-sdk'
 import { serializeInstructionToBase64 } from '@solana/spl-governance'
 import { PublicKey } from '@solana/web3.js'
 import Input from '@components/inputs/Input'
 import Select from '@components/inputs/Select'
+import useInstructionFormBuilder from '@hooks/useInstructionFormBuilder'
 import { createRemoveLiquidityInstruction } from '@tools/sdk/raydium/createRemoveLiquidityInstruction'
 import { fetchLiquidityPoolData } from '@tools/sdk/raydium/helpers'
 import { liquidityPoolKeysList } from '@tools/sdk/raydium/poolKeys'
@@ -17,8 +19,6 @@ import {
 } from '@utils/uiTypes/proposalCreationTypes'
 
 import { NewProposalContext } from '../../../new'
-import useInstructionFormBuilder from '@hooks/useInstructionFormBuilder'
-import { removeRaydiumLiquidityPoolSchema } from '../../schemas/validationSchemas'
 import SelectOptionList from '../../SelectOptionList'
 import { GovernedMultiTypeAccount } from '@utils/tokens'
 
@@ -42,7 +42,17 @@ const RemoveLiquidityFromPool = ({
       liquidityPool: '',
       amountIn: 0,
     },
-    schema: removeRaydiumLiquidityPoolSchema,
+    schema: yup.object().shape({
+      governedAccount: yup
+        .object()
+        .nullable()
+        .required('Program governed account is required'),
+      liquidityPool: yup.string().required('Liquidity Pool is required'),
+      amountIn: yup
+        .number()
+        .moreThan(0, 'Amount for LP token should be more than 0')
+        .required('Amount for LP token is required'),
+    }),
   })
 
   const { handleSetInstructions } = useContext(NewProposalContext)

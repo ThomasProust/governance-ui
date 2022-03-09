@@ -1,17 +1,16 @@
+/* eslint-disable @typescript-eslint/no-non-null-assertion */
 import React, { useContext, useEffect } from 'react'
-import { serializeInstructionToBase64 } from '@solana/spl-governance'
 import * as yup from 'yup'
+import { serializeInstructionToBase64 } from '@solana/spl-governance'
 ;('@hooks/useGovernedMultiTypeAccounts')
+import useInstructionFormBuilder from '@hooks/useInstructionFormBuilder'
 import { createObligationAccount } from '@tools/sdk/solend/createObligationAccount'
+import { GovernedMultiTypeAccount } from '@utils/tokens'
 import {
   CreateSolendObligationAccountForm,
   UiInstruction,
 } from '@utils/uiTypes/proposalCreationTypes'
-
-/* eslint-disable @typescript-eslint/no-non-null-assertion */
 import { NewProposalContext } from '../../../new'
-import useInstructionFormBuilder from '@hooks/useInstructionFormBuilder'
-import { GovernedMultiTypeAccount } from '@utils/tokens'
 
 const CreateObligationAccount = ({
   index,

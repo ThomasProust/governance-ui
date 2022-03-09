@@ -1,10 +1,13 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 import React, { useContext, useEffect } from 'react'
 import BigNumber from 'bignumber.js'
+import * as yup from 'yup'
 import { BN } from '@project-serum/anchor'
 import { serializeInstructionToBase64 } from '@solana/spl-governance'
 import Input from '@components/inputs/Input'
 import Select from '@components/inputs/Select'
+import useInstructionFormBuilder from '@hooks/useInstructionFormBuilder'
+
 import { createAddLiquidityInstruction } from '@tools/sdk/raydium/createAddLiquidityInstruction'
 import {
   getAmountOut,
@@ -12,16 +15,13 @@ import {
 } from '@tools/sdk/raydium/helpers'
 import { liquidityPoolKeysList } from '@tools/sdk/raydium/poolKeys'
 import { debounce } from '@utils/debounce'
+import { GovernedMultiTypeAccount } from '@utils/tokens'
 import {
   AddLiquidityRaydiumForm,
   UiInstruction,
 } from '@utils/uiTypes/proposalCreationTypes'
-
 import { NewProposalContext } from '../../../new'
-import { addRaydiumLiquidityPoolSchema } from '../../schemas/validationSchemas'
-import useInstructionFormBuilder from '@hooks/useInstructionFormBuilder'
 import SelectOptionList from '../../SelectOptionList'
-import { GovernedMultiTypeAccount } from '@utils/tokens'
 
 const AddLiquidityToPool = ({
   index,
@@ -46,7 +46,25 @@ const AddLiquidityToPool = ({
       fixedSide: 'base',
       slippage: 0.5,
     },
-    schema: addRaydiumLiquidityPoolSchema,
+    schema: yup.object().shape({
+      governedAccount: yup
+        .object()
+        .nullable()
+        .required('Program governed account is required'),
+      liquidityPool: yup.string().required('Liquidity Pool is required'),
+      baseAmountIn: yup
+        .number()
+        .moreThan(0, 'Amount for Base token should be more than 0')
+        .required('Amount for Base token is required'),
+      quoteAmountIn: yup
+        .number()
+        .moreThan(0, 'Amount for Quote token should be more than 0')
+        .required('Amount for Quote token is required'),
+      fixedSide: yup
+        .string()
+        .equals(['base', 'quote'])
+        .required('Fixed Side is required'),
+    }),
   })
 
   const { handleSetInstructions } = useContext(NewProposalContext)

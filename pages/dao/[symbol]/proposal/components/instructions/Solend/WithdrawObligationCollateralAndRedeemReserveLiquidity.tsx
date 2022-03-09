@@ -1,90 +1,73 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
-import React, { useContext, useEffect, useState } from 'react'
+import React, { useContext, useEffect } from 'react'
 import Input from '@components/inputs/Input'
 import BigNumber from 'bignumber.js'
 import * as yup from 'yup'
 import { BN } from '@project-serum/anchor'
-import {
-  Governance,
-  ProgramAccount,
-  serializeInstructionToBase64,
-} from '@solana/spl-governance'
+import { serializeInstructionToBase64 } from '@solana/spl-governance'
 import { PublicKey } from '@solana/web3.js'
 import Select from '@components/inputs/Select'
-import useGovernedMultiTypeAccounts from '@hooks/useGovernedMultiTypeAccounts'
-import useRealm from '@hooks/useRealm'
+import useInstructionFormBuilder from '@hooks/useInstructionFormBuilder'
 import SolendConfiguration from '@tools/sdk/solend/configuration'
 import { withdrawObligationCollateralAndRedeemReserveLiquidity } from '@tools/sdk/solend/withdrawObligationCollateralAndRedeemReserveLiquidity'
-import { isFormValid } from '@utils/formValidation'
+import { GovernedMultiTypeAccount } from '@utils/tokens'
 import {
   UiInstruction,
   WithdrawObligationCollateralAndRedeemReserveLiquidityForm,
 } from '@utils/uiTypes/proposalCreationTypes'
-
-import useWalletStore from 'stores/useWalletStore'
-
 import { NewProposalContext } from '../../../new'
-import GovernedAccountSelect from '../../GovernedAccountSelect'
+import SelectOptionList from '../../SelectOptionList'
 
 const WithdrawObligationCollateralAndRedeemReserveLiquidity = ({
   index,
-  governance,
+  governanceAccount,
 }: {
   index: number
-  governance: ProgramAccount<Governance> | null
+  governanceAccount: GovernedMultiTypeAccount | undefined
 }) => {
-  const connection = useWalletStore((s) => s.connection)
-  const wallet = useWalletStore((s) => s.current)
-  const { realmInfo } = useRealm()
-  const { governedMultiTypeAccounts } = useGovernedMultiTypeAccounts()
+  const {
+    form,
+    connection,
+    formErrors,
+    handleSetForm,
+    canSerializeInstruction,
+  } = useInstructionFormBuilder<WithdrawObligationCollateralAndRedeemReserveLiquidityForm>(
+    {
+      initialFormValues: {
+        governedAccount: governanceAccount,
+        uiAmount: '0',
+      },
+      schema: yup.object().shape({
+        governedAccount: yup
+          .object()
+          .nullable()
+          .required('Governed account is required'),
+        mintName: yup.string().required('Token Name is required'),
+        uiAmount: yup
+          .number()
+          .moreThan(0, 'Amount should be more than 0')
+          .required('Amount is required'),
+      }),
+    }
+  )
+  const { handleSetInstructions } = useContext(NewProposalContext)
 
   // Hardcoded gate used to be clear about what cluster is supported for now
   if (connection.cluster !== 'mainnet') {
     return <>This instruction does not support {connection.cluster}</>
   }
 
-  const shouldBeGoverned = index !== 0 && governance
-  const programId: PublicKey | undefined = realmInfo?.programId
-  const [
-    form,
-    setForm,
-  ] = useState<WithdrawObligationCollateralAndRedeemReserveLiquidityForm>({
-    uiAmount: '0',
-  })
-  const [formErrors, setFormErrors] = useState({})
-  const { handleSetInstructions } = useContext(NewProposalContext)
-
-  const handleSetForm = ({ propertyName, value }) => {
-    setFormErrors({})
-    setForm({ ...form, [propertyName]: value })
-  }
-
-  const validateInstruction = async (): Promise<boolean> => {
-    const { isValid, validationErrors } = await isFormValid(schema, form)
-    setFormErrors(validationErrors)
-    return isValid
-  }
-
   async function getInstruction(): Promise<UiInstruction> {
-    const isValid = await validateInstruction()
-
-    if (
-      !connection ||
-      !isValid ||
-      !programId ||
-      !form.governedAccount?.governance?.account ||
-      !wallet?.publicKey ||
-      !form.mintName
-    ) {
+    if (!(await canSerializeInstruction()) || !form.mintName) {
       return {
         serializedInstruction: '',
         isValid: false,
-        governance: form.governedAccount?.governance,
+        governance: governanceAccount?.governance,
       }
     }
 
     const tx = await withdrawObligationCollateralAndRedeemReserveLiquidity({
-      obligationOwner: form.governedAccount.governance.pubkey,
+      obligationOwner: governanceAccount!.governance.pubkey,
       liquidityAmount: new BN(
         new BigNumber(form.uiAmount)
           .shiftedBy(
@@ -102,53 +85,21 @@ const WithdrawObligationCollateralAndRedeemReserveLiquidity = ({
     return {
       serializedInstruction: serializeInstructionToBase64(tx),
       isValid: true,
-      governance: form.governedAccount.governance,
+      governance: governanceAccount!.governance,
     }
   }
 
   useEffect(() => {
-    handleSetForm({
-      propertyName: 'programId',
-      value: programId?.toString(),
-    })
-  }, [programId])
-
-  useEffect(() => {
     handleSetInstructions(
       {
-        governedAccount: form.governedAccount?.governance,
+        governedAccount: governanceAccount?.governance,
         getInstruction,
       },
       index
     )
   }, [form])
-
-  const schema = yup.object().shape({
-    governedAccount: yup
-      .object()
-      .nullable()
-      .required('Governed account is required'),
-    mintName: yup.string().required('Token Name is required'),
-    uiAmount: yup
-      .number()
-      .moreThan(0, 'Amount should be more than 0')
-      .required('Amount is required'),
-  })
-
   return (
     <>
-      <GovernedAccountSelect
-        label="Governance"
-        governedAccounts={governedMultiTypeAccounts}
-        onChange={(value) => {
-          handleSetForm({ value, propertyName: 'governedAccount' })
-        }}
-        value={form.governedAccount}
-        error={formErrors['governedAccount']}
-        shouldBeGoverned={shouldBeGoverned}
-        governance={governance}
-      />
-
       <Select
         label="Token Name"
         value={form.mintName}
@@ -156,11 +107,7 @@ const WithdrawObligationCollateralAndRedeemReserveLiquidity = ({
         onChange={(value) => handleSetForm({ value, propertyName: 'mintName' })}
         error={formErrors['baseTokenName']}
       >
-        {SolendConfiguration.getSupportedMintNames().map((value) => (
-          <Select.Option key={value} value={value}>
-            {value}
-          </Select.Option>
-        ))}
+        <SelectOptionList list={SolendConfiguration.getSupportedMintNames()} />
       </Select>
 
       <Input
