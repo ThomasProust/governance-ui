@@ -104,7 +104,11 @@ const useGovernanceAssetsStore = create<GovernanceAssetsStore>((set, _get) => ({
       connection,
       mintGovernances.map((x) => x.account.governedAccount)
     )
-    withMintAccounts(governedAccounts, mintGovernances, mintGovernancesMintInfo)
+    withMintAccounts(
+      governedAccounts,
+      mintGovernances,
+      mintGovernancesMintInfo as AccountInfoGeneric<Buffer>[]
+    )
     withProgramAccounts(programGovernances, governedAccounts)
     const tokenAccounts = (
       await Promise.all(

@@ -46,7 +46,7 @@ function useInstructionFormBuilder<
       value: initialFormValues.governedAccount,
     })
     validateForm()
-  }, [form, initialFormValues.governedAccount?.governance.pubkey])
+  }, [JSON.stringify(initialFormValues.governedAccount)])
 
   return {
     form,

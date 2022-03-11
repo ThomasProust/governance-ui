@@ -29,13 +29,13 @@ export const getAmountOut = async (
       .shiftedBy(base.value.decimals)
       .toString()
   )
-  const { minAmountOut } = Liquidity.computeCurrencyAmountOut({
+  const { minAmountOut } = Liquidity.computeAmountOut({
     poolKeys,
     poolInfo: await Liquidity.fetchInfo({
       connection: connection.current,
       poolKeys,
     }),
-    currencyAmountIn: new TokenAmount(
+    amountIn: new TokenAmount(
       new Token(poolKeys.baseMint, base.value.decimals),
       amountInBN
     ),
