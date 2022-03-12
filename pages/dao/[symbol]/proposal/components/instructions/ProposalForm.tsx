@@ -159,6 +159,7 @@ const ProposalForm = ({
         Instructions.MangoChangeReferralFeeParams,
         Instructions.MangoMakeChangeMaxAccounts,
         Instructions.None,
+        Instructions.DepositIntoVolt,
       ].includes(itxType) && (
         <GovernedAccountSelect
           label="Governance"

@@ -18,7 +18,7 @@ const CreateAssociatedTokenAccount = ({
   governanceAccount,
 }: {
   index: number
-  governanceAccount: GovernedMultiTypeAccount | undefined
+  governanceAccount?: GovernedMultiTypeAccount
 }) => {
   const {
     wallet,

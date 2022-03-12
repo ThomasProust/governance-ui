@@ -26,7 +26,7 @@ const RemoveLiquidityFromPool = ({
   governanceAccount,
 }: {
   index: number
-  governanceAccount: GovernedMultiTypeAccount | undefined
+  governanceAccount?: GovernedMultiTypeAccount
 }) => {
   const {
     form,
