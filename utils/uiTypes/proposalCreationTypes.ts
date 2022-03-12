@@ -178,13 +178,13 @@ export interface MangoMakeChangeReferralFeeParams {
   refMngoRequired: number
 }
 export interface Base64InstructionForm {
-  governedAccount: GovernedMultiTypeAccount | undefined
+  governedAccount?: GovernedMultiTypeAccount
   base64: string
   holdUpTime: number
 }
 
 export interface EmptyInstructionForm {
-  governedAccount: GovernedMultiTypeAccount | undefined
+  governedAccount?: GovernedMultiTypeAccount
 }
 
 export interface CreateAssociatedTokenAccountForm {
@@ -224,7 +224,7 @@ export interface RefreshReserveForm {
 }
 
 export interface AddLiquidityRaydiumForm {
-  governedAccount: GovernedMultiTypeAccount | undefined
+  governedAccount?: GovernedMultiTypeAccount
   liquidityPool: string
   baseAmountIn: number
   quoteAmountIn: number
@@ -233,7 +233,7 @@ export interface AddLiquidityRaydiumForm {
 }
 
 export interface RemoveLiquidityRaydiumForm {
-  governedAccount: GovernedMultiTypeAccount | undefined
+  governedAccount?: GovernedMultiTypeAccount
   liquidityPool: string
   amountIn: number
 }
@@ -280,13 +280,13 @@ export type createParams = [
 ]
 
 export interface ComponentInstructionData {
-  governedAccount?: ProgramAccount<Governance> | undefined
+  governedAccount?: ProgramAccount<Governance>
   getInstruction?: () => Promise<UiInstruction>
   type: any
 }
 export interface InstructionsContext {
   instructionsData: ComponentInstructionData[]
   handleSetInstructions: (val, index) => void
-  governance: ProgramAccount<Governance> | null | undefined
+  governance?: ProgramAccount<Governance> | null
   setGovernance: (val) => void
 }

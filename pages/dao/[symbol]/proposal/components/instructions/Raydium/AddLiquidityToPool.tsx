@@ -1,8 +1,6 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 import React, { useContext, useEffect } from 'react'
-import BigNumber from 'bignumber.js'
 import * as yup from 'yup'
-import { BN } from '@project-serum/anchor'
 import { serializeInstructionToBase64 } from '@solana/spl-governance'
 import Input from '@components/inputs/Input'
 import Select from '@components/inputs/Select'
@@ -22,6 +20,7 @@ import {
 } from '@utils/uiTypes/proposalCreationTypes'
 import { NewProposalContext } from '../../../new'
 import SelectOptionList from '../../SelectOptionList'
+import { uiAmountToNativeBN } from '@tools/sdk/units'
 
 const AddLiquidityToPool = ({
   index,
@@ -35,11 +34,10 @@ const AddLiquidityToPool = ({
     connection,
     formErrors,
     handleSetForm,
-    validateForm,
     canSerializeInstruction,
   } = useInstructionFormBuilder<AddLiquidityRaydiumForm>({
     initialFormValues: {
-      governedAccount: undefined,
+      governedAccount: governanceAccount,
       liquidityPool: '',
       baseAmountIn: 0,
       quoteAmountIn: 0,
@@ -86,16 +84,8 @@ const AddLiquidityToPool = ({
 
     const createIx = createAddLiquidityInstruction(
       poolKeys,
-      new BN(
-        new BigNumber(form.baseAmountIn.toString())
-          .shiftedBy(base.value.decimals)
-          .toString()
-      ),
-      new BN(
-        new BigNumber(form.quoteAmountIn.toString())
-          .shiftedBy(quote.value.decimals)
-          .toString()
-      ),
+      uiAmountToNativeBN(form.baseAmountIn, base.value.decimals),
+      uiAmountToNativeBN(form.quoteAmountIn, quote.value.decimals),
       form.fixedSide,
       form.governedAccount!.governance.pubkey
     )
@@ -119,14 +109,9 @@ const AddLiquidityToPool = ({
           ),
           propertyName: 'quoteAmountIn',
         })
-        await validateForm()
       })
     }
   }, [form.baseAmountIn, form.slippage])
-
-  useEffect(() => {
-    validateForm()
-  }, [form.quoteAmountIn])
 
   useEffect(() => {
     handleSetInstructions(
@@ -181,12 +166,6 @@ const AddLiquidityToPool = ({
             value={form.quoteAmountIn}
             type="number"
             min={0}
-            onChange={(evt) =>
-              handleSetForm({
-                value: Number(evt.target.value),
-                propertyName: 'quoteAmountIn',
-              })
-            }
             disabled={true}
             error={formErrors['quoteAmountIn']}
           />

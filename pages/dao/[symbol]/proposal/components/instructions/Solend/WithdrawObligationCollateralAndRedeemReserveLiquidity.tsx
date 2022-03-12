@@ -1,9 +1,7 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 import React, { useContext, useEffect } from 'react'
 import Input from '@components/inputs/Input'
-import BigNumber from 'bignumber.js'
 import * as yup from 'yup'
-import { BN } from '@project-serum/anchor'
 import { serializeInstructionToBase64 } from '@solana/spl-governance'
 import { PublicKey } from '@solana/web3.js'
 import Select from '@components/inputs/Select'
@@ -17,6 +15,7 @@ import {
 } from '@utils/uiTypes/proposalCreationTypes'
 import { NewProposalContext } from '../../../new'
 import SelectOptionList from '../../SelectOptionList'
+import { uiAmountToNativeBN } from '@tools/sdk/units'
 
 const WithdrawObligationCollateralAndRedeemReserveLiquidity = ({
   index,
@@ -58,7 +57,7 @@ const WithdrawObligationCollateralAndRedeemReserveLiquidity = ({
   }
 
   async function getInstruction(): Promise<UiInstruction> {
-    if (!(await canSerializeInstruction()) || !form.mintName) {
+    if (!form.mintName || !(await canSerializeInstruction())) {
       return {
         serializedInstruction: '',
         isValid: false,
@@ -68,13 +67,9 @@ const WithdrawObligationCollateralAndRedeemReserveLiquidity = ({
 
     const tx = await withdrawObligationCollateralAndRedeemReserveLiquidity({
       obligationOwner: governanceAccount!.governance.pubkey,
-      liquidityAmount: new BN(
-        new BigNumber(form.uiAmount)
-          .shiftedBy(
-            SolendConfiguration.getSupportedMintInformation(form.mintName)
-              .decimals
-          )
-          .toString()
+      liquidityAmount: uiAmountToNativeBN(
+        form.uiAmount,
+        SolendConfiguration.getSupportedMintInformation(form.mintName).decimals
       ),
       mintName: form.mintName,
       ...(form.destinationLiquidity && {

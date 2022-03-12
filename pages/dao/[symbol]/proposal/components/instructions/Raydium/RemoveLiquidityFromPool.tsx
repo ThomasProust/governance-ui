@@ -1,7 +1,6 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 import React, { useContext, useEffect, useState } from 'react'
 import * as yup from 'yup'
-import BigNumber from 'bignumber.js'
 import { jsonInfo2PoolKeys } from '@raydium-io/raydium-sdk'
 import { serializeInstructionToBase64 } from '@solana/spl-governance'
 import { PublicKey } from '@solana/web3.js'
@@ -11,7 +10,6 @@ import useInstructionFormBuilder from '@hooks/useInstructionFormBuilder'
 import { createRemoveLiquidityInstruction } from '@tools/sdk/raydium/createRemoveLiquidityInstruction'
 import { fetchLiquidityPoolData } from '@tools/sdk/raydium/helpers'
 import { liquidityPoolKeysList } from '@tools/sdk/raydium/poolKeys'
-import { debounce } from '@utils/debounce'
 import { notify } from '@utils/notifications'
 import {
   RemoveLiquidityRaydiumForm,
@@ -21,6 +19,7 @@ import {
 import { NewProposalContext } from '../../../new'
 import SelectOptionList from '../../SelectOptionList'
 import { GovernedMultiTypeAccount } from '@utils/tokens'
+import { uiAmountToNativeBN } from '@tools/sdk/units'
 
 const RemoveLiquidityFromPool = ({
   index,
@@ -33,7 +32,6 @@ const RemoveLiquidityFromPool = ({
     form,
     connection,
     formErrors,
-    validateForm,
     canSerializeInstruction,
     handleSetForm,
   } = useInstructionFormBuilder<RemoveLiquidityRaydiumForm>({
@@ -83,8 +81,11 @@ const RemoveLiquidityFromPool = ({
   }, [governanceAccount?.governance.pubkey, form.liquidityPool])
 
   async function getInstruction(): Promise<UiInstruction> {
-    const isSerializable = await canSerializeInstruction()
-    if (!isSerializable || !form.liquidityPool || !lpMintInfo) {
+    if (
+      !form.liquidityPool ||
+      !lpMintInfo ||
+      !(await canSerializeInstruction())
+    ) {
       return {
         serializedInstruction: '',
         isValid: false,
@@ -94,7 +95,7 @@ const RemoveLiquidityFromPool = ({
     const createIx = createRemoveLiquidityInstruction(
       new PublicKey(governanceAccount!.governance.pubkey),
       jsonInfo2PoolKeys(liquidityPoolKeysList[form.liquidityPool]),
-      new BigNumber(form.amountIn).shiftedBy(lpMintInfo.decimals).toString()
+      uiAmountToNativeBN(form.amountIn, lpMintInfo.decimals)
     )
 
     return {
@@ -103,26 +104,6 @@ const RemoveLiquidityFromPool = ({
       governance: governanceAccount?.governance,
     }
   }
-
-  useEffect(() => {
-    if (form.liquidityPool) {
-      debounce.debounceFcn(async () => {
-        await validateForm()
-      })
-      handleSetForm({
-        value: form.liquidityPool,
-        propertyName: 'liquidityPool',
-      })
-    }
-  }, [form.liquidityPool])
-
-  useEffect(() => {
-    if (form.amountIn) {
-      debounce.debounceFcn(async () => {
-        await validateForm()
-      })
-    }
-  }, [form.amountIn])
 
   useEffect(() => {
     handleSetInstructions(

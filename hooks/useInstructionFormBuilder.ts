@@ -3,6 +3,7 @@ import { isFormValid } from '@utils/formValidation'
 import { useEffect, useState } from 'react'
 import useWalletStore from 'stores/useWalletStore'
 import { GovernedMultiTypeAccount } from '@utils/tokens'
+import { debounce } from '@utils/debounce'
 
 function useInstructionFormBuilder<
   T extends {
@@ -45,8 +46,15 @@ function useInstructionFormBuilder<
       propertyName: 'governedAccount',
       value: initialFormValues.governedAccount,
     })
-    validateForm()
   }, [JSON.stringify(initialFormValues.governedAccount)])
+
+  useEffect(() => {
+    debounce.debounceFcn(() => {
+      ;async () => {
+        await validateForm()
+      }
+    })
+  }, [form])
 
   return {
     form,

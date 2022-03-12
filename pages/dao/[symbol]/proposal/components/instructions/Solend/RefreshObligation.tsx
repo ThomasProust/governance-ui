@@ -47,7 +47,7 @@ const RefreshObligation = ({
   }
 
   async function getInstruction(): Promise<UiInstruction> {
-    if (!(await canSerializeInstruction()) || !form.mintName) {
+    if (!form.mintName || !(await canSerializeInstruction())) {
       return {
         serializedInstruction: '',
         isValid: false,

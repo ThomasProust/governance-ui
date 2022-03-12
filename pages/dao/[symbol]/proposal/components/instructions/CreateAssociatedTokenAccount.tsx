@@ -43,9 +43,9 @@ const CreateAssociatedTokenAccount = ({
 
   async function getInstruction(): Promise<UiInstruction> {
     if (
-      !(await canSerializeInstruction()) ||
       !form.splTokenMintUIName ||
-      !wallet?.publicKey
+      !wallet?.publicKey ||
+      !(await canSerializeInstruction())
     ) {
       return {
         serializedInstruction: '',

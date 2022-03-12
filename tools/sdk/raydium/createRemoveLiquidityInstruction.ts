@@ -6,7 +6,7 @@ import { findATAAddrSync } from '@utils/ataTools'
 export const createRemoveLiquidityInstruction = (
   owner: PublicKey,
   poolKeys: LiquidityPoolKeys,
-  amountIn: string
+  amountIn: BN
 ): TransactionInstruction => {
   const [lpTokenAccount] = findATAAddrSync(owner, poolKeys.lpMint)
   const [baseTokenAccount] = findATAAddrSync(owner, poolKeys.baseMint)
@@ -20,7 +20,7 @@ export const createRemoveLiquidityInstruction = (
       lpTokenAccount,
       owner,
     },
-    amountIn: new BN(amountIn),
+    amountIn,
   })
 
   return itx
