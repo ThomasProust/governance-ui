@@ -104,7 +104,7 @@ const AddLiquidityToPool = ({
           value: await getAmountOut(
             form.liquidityPool,
             form.baseAmountIn,
-            connection,
+            connection.current,
             form.slippage
           ),
           propertyName: 'quoteAmountIn',

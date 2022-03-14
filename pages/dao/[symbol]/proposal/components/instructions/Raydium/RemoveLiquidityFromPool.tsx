@@ -66,7 +66,7 @@ const RemoveLiquidityFromPool = ({
         const { maxBalance, decimals } = await fetchLiquidityPoolData({
           governanceKey: governanceAccount?.governance.pubkey,
           lp: form.liquidityPool,
-          connection,
+          connection: connection.current,
         })
         setLpMintInfo({ balance: maxBalance, decimals })
       } catch (e) {

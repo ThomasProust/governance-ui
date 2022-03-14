@@ -8,21 +8,20 @@ import {
   Token,
   TokenAmount,
 } from '@raydium-io/raydium-sdk'
-import { PublicKey } from '@solana/web3.js'
+import { Connection, PublicKey } from '@solana/web3.js'
 import { findATAAddrSync } from '@utils/ataTools'
-import { ConnectionContext } from '@utils/connection'
 import { liquidityPoolKeysList } from './poolKeys'
 
 export const getAmountOut = async (
   liquidityPool: string,
   amountIn: number,
-  connection: ConnectionContext,
+  connection: Connection,
   slippage: number //slippage in %
 ) => {
   const poolKeys = getLiquidityPoolKeysByLabel(liquidityPool)
   const [base, quote] = await Promise.all([
-    connection.current.getTokenSupply(poolKeys.baseMint),
-    connection.current.getTokenSupply(poolKeys.quoteMint),
+    connection.getTokenSupply(poolKeys.baseMint),
+    connection.getTokenSupply(poolKeys.quoteMint),
   ])
   const amountInBN = new BN(
     new BigNumber(Number(amountIn).toFixed(base.value.decimals))
@@ -32,7 +31,7 @@ export const getAmountOut = async (
   const { minAmountOut } = Liquidity.computeAmountOut({
     poolKeys,
     poolInfo: await Liquidity.fetchInfo({
-      connection: connection.current,
+      connection: connection,
       poolKeys,
     }),
     amountIn: new TokenAmount(
@@ -48,14 +47,14 @@ export const getAmountOut = async (
 }
 
 export const getLPMintInfo = async (
-  connection: ConnectionContext,
+  connection: Connection,
   lpMint: PublicKey,
   user: PublicKey
 ) => {
   const [lpTokenAccount] = findATAAddrSync(user, lpMint)
   const [lpInfo, lpUserBalance] = await Promise.all([
-    connection.current.getTokenSupply(lpMint),
-    connection.current.getTokenAccountBalance(lpTokenAccount),
+    connection.getTokenSupply(lpMint),
+    connection.getTokenAccountBalance(lpTokenAccount),
   ])
   return {
     lpTokenAccount,
@@ -80,7 +79,7 @@ export const fetchLiquidityPoolData = async ({
 }: {
   governanceKey?: PublicKey
   lp?: string
-  connection: ConnectionContext
+  connection: Connection
 }) => {
   if (!governanceKey || !lp) return { maxBalance: 0, decimals: 0 }
   const { lpMint } = liquidityPoolKeysList[lp]
