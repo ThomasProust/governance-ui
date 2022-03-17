@@ -89,12 +89,11 @@ const AddLiquidityToPool = ({
       form.fixedSide,
       form.governedAccount!.governance.pubkey
     )
-    const obj: UiInstruction = {
+    return {
       serializedInstruction: serializeInstructionToBase64(createIx),
       isValid: true,
       governance: form.governedAccount?.governance,
     }
-    return obj
   }
 
   useEffect(() => {

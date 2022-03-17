@@ -22,6 +22,11 @@ import RefreshObligation from './Solend/RefreshObligation'
 import RefreshReserve from './Solend/RefreshReserve'
 import WithdrawObligationCollateralAndRedeemReserveLiquidity from './Solend/WithdrawObligationCollateralAndRedeemReserveLiquidity'
 import SplTokenTransfer from './SplTokenTransfer'
+import MakeAddSpotMarket from './Mango/MakeAddSpotMarket'
+import MakeChangePerpMarket from './Mango/MakeChangePerpMarket'
+import MakeChangeSpotMarket from './Mango/MakeChangeSpotMarket'
+import MakeCreatePerpMarket from './Mango/MakeCreatePerpMarket'
+import MakeAddOracle from './Mango/MakeAddOracle'
 
 const ProposalForm = ({
   index,
@@ -43,19 +48,9 @@ const ProposalForm = ({
   const getCurrentInstruction = () => {
     switch (itxType) {
       case Instructions.Transfer:
-        return (
-          <SplTokenTransfer
-            index={index}
-            governance={governance}
-          ></SplTokenTransfer>
-        )
+        return <SplTokenTransfer index={index} governance={governance} />
       case Instructions.ProgramUpgrade:
-        return (
-          <ProgramUpgrade
-            index={index}
-            governance={governance}
-          ></ProgramUpgrade>
-        )
+        return <ProgramUpgrade index={index} governance={governance} />
       case Instructions.CreateAssociatedTokenAccount:
         return (
           <CreateAssociatedTokenAccount
@@ -117,31 +112,32 @@ const ProposalForm = ({
           />
         )
       case Instructions.Mint:
-        return <Mint index={index} governance={governance}></Mint>
+        return <Mint index={index} governance={governance} />
       case Instructions.Base64:
-        return (
-          <CustomBase64 index={index} governance={governance}></CustomBase64>
-        )
+        return <CustomBase64 index={index} governance={governance} />
       case Instructions.None:
-        return <Empty index={index} governance={governance}></Empty>
+        return <Empty index={index} governance={governance} />
+      case Instructions.MangoAddOracle:
+        return <MakeAddOracle index={index} governance={governance} />
+      case Instructions.MangoAddSpotMarket:
+        return <MakeAddSpotMarket index={index} governance={governance} />
       case Instructions.MangoChangeMaxAccounts:
-        return (
-          <MakeChangeMaxAccounts
-            index={index}
-            governance={governance}
-          ></MakeChangeMaxAccounts>
-        )
+        return <MakeChangeMaxAccounts index={index} governance={governance} />
+      case Instructions.MangoChangePerpMarket:
+        return <MakeChangePerpMarket index={index} governance={governance} />
       case Instructions.MangoChangeReferralFeeParams:
         return (
-          <MakeChangeReferralFeeParams
-            index={index}
-            governance={governance}
-          ></MakeChangeReferralFeeParams>
+          <MakeChangeReferralFeeParams index={index} governance={governance} />
         )
+      case Instructions.MangoChangeSpotMarket:
+        return <MakeChangeSpotMarket index={index} governance={governance} />
+      case Instructions.MangoCreatePerpMarket:
+        return <MakeCreatePerpMarket index={index} governance={governance} />
+
       case Instructions.Grant:
-        return <Grant index={index} governance={governance}></Grant>
+        return <Grant index={index} governance={governance} />
       case Instructions.Clawback:
-        return <Clawback index={index} governance={governance}></Clawback>
+        return <Clawback index={index} governance={governance} />
       default:
         null
     }
