@@ -124,7 +124,7 @@ const ProposalForm = ({
         )
       case Instructions.None:
         return <Empty index={index} governance={governance}></Empty>
-      case Instructions.MangoMakeChangeMaxAccounts:
+      case Instructions.MangoChangeMaxAccounts:
         return (
           <MakeChangeMaxAccounts
             index={index}
@@ -156,8 +156,13 @@ const ProposalForm = ({
         Instructions.Base64,
         Instructions.Clawback,
         Instructions.Grant,
+        Instructions.MangoAddOracle,
+        Instructions.MangoAddSpotMarket,
+        Instructions.MangoChangePerpMarket,
+        Instructions.MangoChangeSpotMarket,
         Instructions.MangoChangeReferralFeeParams,
-        Instructions.MangoMakeChangeMaxAccounts,
+        Instructions.MangoChangeMaxAccounts,
+        Instructions.MangoCreatePerpMarket,
         Instructions.None,
         Instructions.DepositIntoVolt,
       ].includes(itxType) && (
