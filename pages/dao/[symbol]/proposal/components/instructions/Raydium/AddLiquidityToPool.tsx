@@ -1,7 +1,6 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
-import React, { useContext, useEffect } from 'react'
+import React, { useEffect } from 'react'
 import * as yup from 'yup'
-import { serializeInstructionToBase64 } from '@solana/spl-governance'
 import Input from '@components/inputs/Input'
 import Select from '@components/inputs/Select'
 import useInstructionFormBuilder from '@hooks/useInstructionFormBuilder'
@@ -14,33 +13,26 @@ import {
 import { liquidityPoolKeysList } from '@tools/sdk/raydium/poolKeys'
 import { debounce } from '@utils/debounce'
 import { GovernedMultiTypeAccount } from '@utils/tokens'
-import {
-  AddLiquidityRaydiumForm,
-  UiInstruction,
-} from '@utils/uiTypes/proposalCreationTypes'
-import { NewProposalContext } from '../../../new'
+import { AddLiquidityRaydiumForm } from '@utils/uiTypes/proposalCreationTypes'
 import SelectOptionList from '../../SelectOptionList'
 import { uiAmountToNativeBN } from '@tools/sdk/units'
 
 const AddLiquidityToPool = ({
   index,
-  governanceAccount,
+  governedAccount,
 }: {
   index: number
-  governanceAccount?: GovernedMultiTypeAccount
+  governedAccount?: GovernedMultiTypeAccount
 }) => {
   const {
     form,
     connection,
     formErrors,
     handleSetForm,
-    canSerializeInstruction,
   } = useInstructionFormBuilder<AddLiquidityRaydiumForm>({
+    index,
     initialFormValues: {
-      governedAccount: governanceAccount,
-      liquidityPool: '',
-      baseAmountIn: 0,
-      quoteAmountIn: 0,
+      governedAccount,
       fixedSide: 'base',
       slippage: 0.5,
     },
@@ -62,62 +54,41 @@ const AddLiquidityToPool = ({
         .string()
         .equals(['base', 'quote'])
         .required('Fixed Side is required'),
+      slippage: yup.number().required('Slippage value is required'),
     }),
+    buildInstruction: async function () {
+      if (!form.liquidityPool || !form.baseAmountIn || !form.quoteAmountIn)
+        throw new Error('missing field in instruction form')
+      const poolKeys = getLiquidityPoolKeysByLabel(form.liquidityPool)
+      const [base, quote] = await Promise.all([
+        connection.current.getTokenSupply(poolKeys.baseMint),
+        connection.current.getTokenSupply(poolKeys.quoteMint),
+      ])
+      return createAddLiquidityInstruction(
+        poolKeys,
+        uiAmountToNativeBN(form.baseAmountIn, base.value.decimals),
+        uiAmountToNativeBN(form.quoteAmountIn, quote.value.decimals),
+        form.fixedSide,
+        form.governedAccount!.governance.pubkey
+      )
+    },
   })
 
-  const { handleSetInstructions } = useContext(NewProposalContext)
-
-  async function getInstruction(): Promise<UiInstruction> {
-    if (!(await canSerializeInstruction())) {
-      return {
-        serializedInstruction: '',
-        isValid: false,
-        governance: governanceAccount?.governance,
-      }
-    }
-
-    const poolKeys = getLiquidityPoolKeysByLabel(form.liquidityPool)
-    const [base, quote] = await Promise.all([
-      connection.current.getTokenSupply(poolKeys.baseMint),
-      connection.current.getTokenSupply(poolKeys.quoteMint),
-    ])
-
-    const createIx = createAddLiquidityInstruction(
-      poolKeys,
-      uiAmountToNativeBN(form.baseAmountIn, base.value.decimals),
-      uiAmountToNativeBN(form.quoteAmountIn, quote.value.decimals),
-      form.fixedSide,
-      form.governedAccount!.governance.pubkey
-    )
-    return {
-      serializedInstruction: serializeInstructionToBase64(createIx),
-      isValid: true,
-      governance: form.governedAccount?.governance,
-    }
-  }
-
   useEffect(() => {
-    if (form.baseAmountIn) {
-      debounce.debounceFcn(async () => {
-        handleSetForm({
-          value: await getAmountOut(
-            form.liquidityPool,
-            form.baseAmountIn,
-            connection.current,
-            form.slippage
-          ),
-          propertyName: 'quoteAmountIn',
-        })
+    debounce.debounceFcn(async () => {
+      if (!form.baseAmountIn || !form.liquidityPool) return
+
+      handleSetForm({
+        value: await getAmountOut(
+          form.liquidityPool,
+          form.baseAmountIn,
+          connection.current,
+          form.slippage
+        ),
+        propertyName: 'quoteAmountIn',
       })
-    }
+    })
   }, [form.baseAmountIn, form.slippage])
-
-  useEffect(() => {
-    handleSetInstructions(
-      { governedAccount: form.governedAccount?.governance, getInstruction },
-      index
-    )
-  }, [form])
 
   return (
     <>

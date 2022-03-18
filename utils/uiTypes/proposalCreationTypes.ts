@@ -225,9 +225,9 @@ export interface RefreshReserveForm {
 
 export interface AddLiquidityRaydiumForm {
   governedAccount?: GovernedMultiTypeAccount
-  liquidityPool: string
-  baseAmountIn: number
-  quoteAmountIn: number
+  liquidityPool?: string
+  baseAmountIn?: number
+  quoteAmountIn?: number
   fixedSide: AmountSide
   slippage: number
 }

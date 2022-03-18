@@ -328,7 +328,7 @@ const New = () => {
                       value={instruction.type?.name}
                     >
                       {availableInstructionsForIdx.map((inst) => (
-                        <Select.Option key={inst.id} value={inst}>
+                        <Select.Option key={inst.name} value={inst}>
                           <span>{inst.name}</span>
                         </Select.Option>
                       ))}

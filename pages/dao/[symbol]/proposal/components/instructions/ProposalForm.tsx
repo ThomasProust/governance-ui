@@ -41,7 +41,7 @@ const ProposalForm = ({
 
   const shouldBeGoverned = index !== 0 && governance
 
-  const [governanceAccount, setGovernanceAccount] = useState<
+  const [governedAccount, setGovernanceAccount] = useState<
     GovernedMultiTypeAccount | undefined
   >()
 
@@ -55,60 +55,57 @@ const ProposalForm = ({
         return (
           <CreateAssociatedTokenAccount
             index={index}
-            governanceAccount={governanceAccount}
+            governedAccount={governedAccount}
           />
         )
       case Instructions.CreateSolendObligationAccount:
         return (
           <CreateObligationAccount
             index={index}
-            governanceAccount={governanceAccount}
+            governedAccount={governedAccount}
           />
         )
       case Instructions.InitSolendObligationAccount:
         return (
           <InitObligationAccount
             index={index}
-            governanceAccount={governanceAccount}
+            governedAccount={governedAccount}
           />
         )
       case Instructions.DepositReserveLiquidityAndObligationCollateral:
         return (
           <DepositReserveLiquidityAndObligationCollateral
             index={index}
-            governanceAccount={governanceAccount}
+            governedAccount={governedAccount}
           />
         )
       case Instructions.RefreshSolendObligation:
         return (
-          <RefreshObligation
-            index={index}
-            governanceAccount={governanceAccount}
-          />
+          <RefreshObligation index={index} governedAccount={governedAccount} />
         )
       case Instructions.RefreshSolendReserve:
         return (
-          <RefreshReserve index={index} governanceAccount={governanceAccount} />
+          <RefreshReserve index={index} governedAccount={governedAccount} />
         )
       case Instructions.WithdrawObligationCollateralAndRedeemReserveLiquidity:
         return (
           <WithdrawObligationCollateralAndRedeemReserveLiquidity
             index={index}
-            governanceAccount={governanceAccount}
+            governedAccount={governedAccount}
           />
         )
       case Instructions.AddLiquidityRaydium:
         return (
           <AddLiquidityToPoolRaydium
             index={index}
-            governanceAccount={governanceAccount}
+            governedAccount={governedAccount}
           />
         )
       case Instructions.RemoveLiquidityRaydium:
         return (
           <RemoveLiquidityFromPoolRaydium
             index={index}
-            governanceAccount={governanceAccount}
+            governedAccount={governedAccount}
           />
         )
       case Instructions.Mint:
@@ -168,7 +165,7 @@ const ProposalForm = ({
           onChange={(value) => {
             setGovernanceAccount(value)
           }}
-          value={governanceAccount}
+          value={governedAccount}
           shouldBeGoverned={shouldBeGoverned}
           governance={governance}
         />

@@ -161,5 +161,7 @@ export function uiAmountToNativeBN(
   decimals: number
 ): BN {
   const amount = typeof uiAmount === 'number' ? uiAmount.toString() : uiAmount
-  return new BN(new BigNumber(amount).shiftedBy(decimals).toString())
+  return new BN(
+    new BigNumber(amount).shiftedBy(decimals).integerValue().toString()
+  )
 }

@@ -1,38 +1,33 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
-import React, { useContext, useEffect } from 'react'
+import React from 'react'
 import * as yup from 'yup'
-import { serializeInstructionToBase64 } from '@solana/spl-governance'
 import Input from '@components/inputs/Input'
 import Select from '@components/inputs/Select'
 import useInstructionFormBuilder from '@hooks/useInstructionFormBuilder'
 import SolendConfiguration from '@tools/sdk/solend/configuration'
 import { depositReserveLiquidityAndObligationCollateral } from '@tools/sdk/solend/depositReserveLiquidityAndObligationCollateral'
 import { GovernedMultiTypeAccount } from '@utils/tokens'
-import {
-  DepositReserveLiquidityAndObligationCollateralForm,
-  UiInstruction,
-} from '@utils/uiTypes/proposalCreationTypes'
-import { NewProposalContext } from '../../../new'
+import { DepositReserveLiquidityAndObligationCollateralForm } from '@utils/uiTypes/proposalCreationTypes'
 import SelectOptionList from '../../SelectOptionList'
 import { uiAmountToNativeBN } from '@tools/sdk/units'
 
 const DepositReserveLiquidityAndObligationCollateral = ({
   index,
-  governanceAccount,
+  governedAccount,
 }: {
   index: number
-  governanceAccount?: GovernedMultiTypeAccount
+  governedAccount?: GovernedMultiTypeAccount
 }) => {
   const {
     form,
     connection,
     formErrors,
     handleSetForm,
-    canSerializeInstruction,
   } = useInstructionFormBuilder<DepositReserveLiquidityAndObligationCollateralForm>(
     {
+      index,
       initialFormValues: {
-        governedAccount: governanceAccount,
+        governedAccount,
         uiAmount: '0',
       },
       schema: yup.object().shape({
@@ -46,6 +41,19 @@ const DepositReserveLiquidityAndObligationCollateral = ({
           .moreThan(0, 'Amount should be more than 0')
           .required('Amount is required'),
       }),
+      buildInstruction: async function () {
+        if (!form.mintName)
+          throw new Error('invalid form, missing mintName field')
+        return depositReserveLiquidityAndObligationCollateral({
+          obligationOwner: governedAccount!.governance.pubkey,
+          liquidityAmount: uiAmountToNativeBN(
+            form.uiAmount,
+            SolendConfiguration.getSupportedMintInformation(form.mintName)
+              .decimals
+          ),
+          mintName: form.mintName,
+        })
+      },
     }
   )
 
@@ -53,43 +61,6 @@ const DepositReserveLiquidityAndObligationCollateral = ({
   if (connection.cluster !== 'mainnet') {
     return <>This instruction does not support {connection.cluster}</>
   }
-
-  const { handleSetInstructions } = useContext(NewProposalContext)
-
-  async function getInstruction(): Promise<UiInstruction> {
-    if (!form.mintName || !(await canSerializeInstruction())) {
-      return {
-        serializedInstruction: '',
-        isValid: false,
-        governance: governanceAccount?.governance,
-      }
-    }
-
-    const tx = await depositReserveLiquidityAndObligationCollateral({
-      obligationOwner: governanceAccount!.governance.pubkey,
-      liquidityAmount: uiAmountToNativeBN(
-        form.uiAmount,
-        SolendConfiguration.getSupportedMintInformation(form.mintName).decimals
-      ),
-      mintName: form.mintName,
-    })
-
-    return {
-      serializedInstruction: serializeInstructionToBase64(tx),
-      isValid: true,
-      governance: governanceAccount!.governance,
-    }
-  }
-
-  useEffect(() => {
-    handleSetInstructions(
-      {
-        governedAccount: governanceAccount?.governance,
-        getInstruction,
-      },
-      index
-    )
-  }, [form])
 
   return (
     <>

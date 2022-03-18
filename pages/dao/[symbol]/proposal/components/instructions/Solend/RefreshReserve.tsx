@@ -1,34 +1,29 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
-import React, { useContext, useEffect } from 'react'
+import React from 'react'
 import * as yup from 'yup'
-import { serializeInstructionToBase64 } from '@solana/spl-governance'
 import Select from '@components/inputs/Select'
 import useInstructionFormBuilder from '@hooks/useInstructionFormBuilder'
 import SolendConfiguration from '@tools/sdk/solend/configuration'
 import { refreshReserve } from '@tools/sdk/solend/refreshReserve'
 import { GovernedMultiTypeAccount } from '@utils/tokens'
-import {
-  RefreshReserveForm,
-  UiInstruction,
-} from '@utils/uiTypes/proposalCreationTypes'
-import { NewProposalContext } from '../../../new'
+import { RefreshReserveForm } from '@utils/uiTypes/proposalCreationTypes'
 
 const RefreshReserve = ({
   index,
-  governanceAccount,
+  governedAccount,
 }: {
   index: number
-  governanceAccount?: GovernedMultiTypeAccount
+  governedAccount?: GovernedMultiTypeAccount
 }) => {
   const {
     form,
     connection,
     formErrors,
     handleSetForm,
-    canSerializeInstruction,
   } = useInstructionFormBuilder<RefreshReserveForm>({
+    index,
     initialFormValues: {
-      governedAccount: governanceAccount,
+      governedAccount,
     },
     schema: yup.object().shape({
       governedAccount: yup
@@ -37,61 +32,34 @@ const RefreshReserve = ({
         .required('Governed account is required'),
       mintName: yup.string().required('Token Name is required'),
     }),
+    buildInstruction: async function () {
+      if (!form.mintName)
+        throw new Error('invalid form, missing mintName field')
+      return refreshReserve({
+        mintName: form.mintName,
+      })
+    },
   })
-
-  const { handleSetInstructions } = useContext(NewProposalContext)
 
   // Hardcoded gate used to be clear about what cluster is supported for now
   if (connection.cluster !== 'mainnet') {
     return <>This instruction does not support {connection.cluster}</>
   }
 
-  async function getInstruction(): Promise<UiInstruction> {
-    if (!form.mintName || !(await canSerializeInstruction())) {
-      return {
-        serializedInstruction: '',
-        isValid: false,
-        governance: form.governedAccount?.governance,
-      }
-    }
-
-    const tx = await refreshReserve({
-      mintName: form.mintName,
-    })
-
-    return {
-      serializedInstruction: serializeInstructionToBase64(tx),
-      isValid: true,
-      governance: governanceAccount?.governance,
-    }
-  }
-
-  useEffect(() => {
-    handleSetInstructions(
-      {
-        governedAccount: form.governedAccount?.governance,
-        getInstruction,
-      },
-      index
-    )
-  }, [form])
-
   return (
-    <>
-      <Select
-        label="Token Name to refresh reserve for"
-        value={form.mintName}
-        placeholder="Please select..."
-        onChange={(value) => handleSetForm({ value, propertyName: 'mintName' })}
-        error={formErrors['baseTokenName']}
-      >
-        {SolendConfiguration.getSupportedMintNames().map((value) => (
-          <Select.Option key={value} value={value}>
-            {value}
-          </Select.Option>
-        ))}
-      </Select>
-    </>
+    <Select
+      label="Token Name to refresh reserve for"
+      value={form.mintName}
+      placeholder="Please select..."
+      onChange={(value) => handleSetForm({ value, propertyName: 'mintName' })}
+      error={formErrors['baseTokenName']}
+    >
+      {SolendConfiguration.getSupportedMintNames().map((value) => (
+        <Select.Option key={value} value={value}>
+          {value}
+        </Select.Option>
+      ))}
+    </Select>
   )
 }
 
