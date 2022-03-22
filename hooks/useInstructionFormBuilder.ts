@@ -46,16 +46,13 @@ function useInstructionFormBuilder<
     return isValid
   }
 
-  const canSerializeInstruction = async () => {
-    const isValid = await validateForm()
-
-    return (
-      isValid && wallet?.publicKey && form.governedAccount?.governance?.account
-    )
-  }
-
   const getInstruction = async (): Promise<UiInstruction> => {
-    if (!(await canSerializeInstruction()) || !buildInstruction) {
+    if (
+      !wallet?.publicKey ||
+      !form.governedAccount?.governance?.account ||
+      !buildInstruction ||
+      (await validateForm())
+    ) {
       return {
         serializedInstruction: '',
         isValid: false,
@@ -90,10 +87,8 @@ function useInstructionFormBuilder<
 
   useEffect(() => {
     console.debug('form', form)
-    debounce.debounceFcn(() => {
-      ;async () => {
-        await validateForm()
-      }
+    debounce.debounceFcn(async () => {
+      await validateForm()
     })
     handleSetInstructions(
       { governedAccount: form.governedAccount?.governance, getInstruction },
@@ -109,7 +104,6 @@ function useInstructionFormBuilder<
     formErrors,
     handleSetForm,
     validateForm,
-    canSerializeInstruction,
   }
 }
 
