@@ -4217,6 +4217,13 @@
     lodash.mapvalues "^4.6.0"
     tslib "^2.3.1"
 
+"@saberhq/option-utils@^1.14.10":
+  version "1.14.10"
+  resolved "https://registry.yarnpkg.com/@saberhq/option-utils/-/option-utils-1.14.10.tgz#60444ae0e071ac6980e025bd3921b13cead6e80a"
+  integrity sha512-hEkRZmAdbDAz9jCAizGDbNkHkVSUILBOrI/uxVKNf6U3EqptzDet5j5KUhQ32cfkvGR9BJNoPomyU+tLBHF5PA==
+  dependencies:
+    tslib "^2.4.0"
+
 "@saberhq/solana-contrib@1.12.53":
   version "1.12.53"
   resolved "https://registry.yarnpkg.com/@saberhq/solana-contrib/-/solana-contrib-1.12.53.tgz#1a946e55ce9a63ceffe4485ec9c31cd9fc890f52"
@@ -4254,6 +4261,31 @@
     tiny-invariant "^1.2.0"
     tslib "^2.4.0"
 
+"@saberhq/solana-contrib@^1.14.10":
+  version "1.14.10"
+  resolved "https://registry.yarnpkg.com/@saberhq/solana-contrib/-/solana-contrib-1.14.10.tgz#ab2d80909f0a16920dbb7cf466cbce72113ae523"
+  integrity sha512-YnZGSiCgBetpzSE6tVxa4Xb+Ld1CTT7cCLx/X3DbcNp5qwhD7iJGU/f0l+c1pdHCRoDNFbX6iXs5+i6Ab5IVdw==
+  dependencies:
+    "@saberhq/option-utils" "^1.14.10"
+    "@solana/buffer-layout" "^4.0.0"
+    "@types/promise-retry" "^1.1.3"
+    "@types/retry" "^0.12.2"
+    promise-retry "^2.0.1"
+    retry "^0.13.1"
+    tiny-invariant "^1.3.1"
+    tslib "^2.4.0"
+
+"@saberhq/stableswap-sdk@^1.14.10":
+  version "1.14.10"
+  resolved "https://registry.yarnpkg.com/@saberhq/stableswap-sdk/-/stableswap-sdk-1.14.10.tgz#511a2e377c3490ddbdc217824fabbf37b41c6074"
+  integrity sha512-z2hp17qy6otZ9rwD8H15fD6haq5HdR7qRMi0AUvZORxl5Kr17qqlE/q+h4UqxlrfJCeF4BCHqjpnXXKgWCn15w==
+  dependencies:
+    "@saberhq/solana-contrib" "^1.14.10"
+    "@saberhq/token-utils" "^1.14.10"
+    "@solana/buffer-layout" "^4.0.0"
+    tiny-invariant "^1.3.1"
+    tslib "^2.4.0"
+
 "@saberhq/token-utils@1.12.53":
   version "1.12.53"
   resolved "https://registry.yarnpkg.com/@saberhq/token-utils/-/token-utils-1.12.53.tgz#405cebd330e68e537b4ce5ffc21462eced22cba7"
@@ -4276,6 +4308,18 @@
     "@solana/spl-token" "^0.1.8"
     "@ubeswap/token-math" "^4.4.8"
     tiny-invariant "^1.2.0"
+    tslib "^2.4.0"
+
+"@saberhq/token-utils@^1.14.10":
+  version "1.14.10"
+  resolved "https://registry.yarnpkg.com/@saberhq/token-utils/-/token-utils-1.14.10.tgz#b58c66301a76c3901c91235df4dcbefb262c1f88"
+  integrity sha512-7qsFVGF5Unc5yVkrbtcJs99WRFR20U2gZeFUn9h4iBeBoKXW9oKuTWyQTvOHk47vX6zYigU0AyIwsDxs9oQvdA==
+  dependencies:
+    "@saberhq/solana-contrib" "^1.14.10"
+    "@solana/buffer-layout" "^4.0.0"
+    "@solana/spl-token" "^0.1.8"
+    "@ubeswap/token-math" "^5.2.1"
+    tiny-invariant "^1.3.1"
     tslib "^2.4.0"
 
 "@saberhq/use-solana@^1.12.26":
@@ -6216,6 +6260,11 @@
   dependencies:
     "@babel/types" "^7.3.0"
 
+"@types/big.js@^6.1.6":
+  version "6.1.6"
+  resolved "https://registry.yarnpkg.com/@types/big.js/-/big.js-6.1.6.tgz#3d417e758483d55345a03a087f7e0c87137ca444"
+  integrity sha512-0r9J+Zz9rYm2hOTwiMAVkm3XFQ4u5uTK37xrQMhc9bysn/sf/okzovWMYYIBMFTn/yrEZ11pusgLEaoarTlQbA==
+
 "@types/bn.js@^4.11.5":
   version "4.11.6"
   resolved "https://registry.npmjs.org/@types/bn.js/-/bn.js-4.11.6.tgz"
@@ -6834,6 +6883,17 @@
     decimal.js-light "^2.5.1"
     tiny-invariant "^1.2.0"
     toformat "^2.0.0"
+    tslib "^2.4.0"
+
+"@ubeswap/token-math@^5.2.1":
+  version "5.2.1"
+  resolved "https://registry.yarnpkg.com/@ubeswap/token-math/-/token-math-5.2.1.tgz#66e70ba8d65b5fdb1b7459332fbdad4ddec32a64"
+  integrity sha512-wkIKDKIl6rml4CVK3fvjjLVk55Z8qEYTgjxZx7MnrTwECazyhiDuekb9WAaDPXcW5QNffCu8uv4Ba8wE96CJsg==
+  dependencies:
+    "@types/big.js" "^6.1.6"
+    big.js "^6.2.1"
+    decimal.js-light "^2.5.1"
+    tiny-invariant "^1.2.0"
     tslib "^2.4.0"
 
 "@ungap/promise-all-settled@1.1.2":
@@ -7965,6 +8025,11 @@ big.js@^6.1.1:
   version "6.1.1"
   resolved "https://registry.npmjs.org/big.js/-/big.js-6.1.1.tgz"
   integrity sha512-1vObw81a8ylZO5ePrtMay0n018TcftpTA5HFKDaSuiUDBo8biRBtjIobw60OpwuvrGk+FsxKamqN4cnmj/eXdg==
+
+big.js@^6.2.1:
+  version "6.2.1"
+  resolved "https://registry.yarnpkg.com/big.js/-/big.js-6.2.1.tgz#7205ce763efb17c2e41f26f121c420c6a7c2744f"
+  integrity sha512-bCtHMwL9LeDIozFn+oNhhFoq+yQ3BNdnsLSASUxLciOb1vgvpHsIO1dsENiGMgbb4SkP5TrzWzRiLddn8ahVOQ==
 
 bigint-buffer@^1.1.5:
   version "1.1.5"
@@ -18699,6 +18764,11 @@ tiny-invariant@^1.0.6, tiny-invariant@^1.2.0:
   version "1.2.0"
   resolved "https://registry.yarnpkg.com/tiny-invariant/-/tiny-invariant-1.2.0.tgz#a1141f86b672a9148c72e978a19a73b9b94a15a9"
   integrity sha512-1Uhn/aqw5C6RI4KejVeTg6mIS7IqxnLJ8Mv2tV5rTc0qWobay7pDUz6Wi392Cnc8ak1H0F2cjoRzb2/AW4+Fvg==
+
+tiny-invariant@^1.3.1:
+  version "1.3.1"
+  resolved "https://registry.yarnpkg.com/tiny-invariant/-/tiny-invariant-1.3.1.tgz#8560808c916ef02ecfd55e66090df23a4b7aa642"
+  integrity sha512-AD5ih2NlSssTCwsMznbvwMZpJ1cbhkGd2uueNxzv2jDlEeZdU04JQfRnggJQ8DrcVBGjAsCKwFBbDlVNtEMlzw==
 
 tiny-relative-date@^1.3.0:
   version "1.3.0"

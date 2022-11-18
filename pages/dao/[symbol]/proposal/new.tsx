@@ -127,6 +127,7 @@ import JoinDAO from './components/instructions/JoinDAO'
 import UpdateConfigAuthority from './components/instructions/Serum/UpdateConfigAuthority'
 import UpdateConfigParams from './components/instructions/Serum/UpdateConfigParams'
 import ClaimMangoTokens from './components/instructions/Mango/ClaimTokens'
+import DepositToSaberPool from './components/instructions/Saber/Deposit'
 
 const TITLE_LENGTH_LIMIT = 130
 
@@ -531,6 +532,7 @@ const New = () => {
       [Instructions.SerumUpdateGovConfigAuthority]: UpdateConfigAuthority,
       [Instructions.JoinDAO]: JoinDAO,
       [Instructions.ClaimMangoTokens]: ClaimMangoTokens,
+      [Instructions.DepositToSaberPool]: DepositToSaberPool,
     }),
     []
   )

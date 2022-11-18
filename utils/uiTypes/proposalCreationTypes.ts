@@ -11,6 +11,7 @@ import { consts as foresightConsts } from '@foresight-tmp/foresight-sdk'
 import { AssetAccount, StakeAccount } from '@utils/uiTypes/assets'
 import { RealmInfo } from '@models/registry/api'
 import * as Msp from '@mean-dao/msp'
+import { SupportedSaberPoolNames } from '@tools/sdk/saber/pools'
 
 export interface UiInstruction {
   serializedInstruction: string
@@ -202,6 +203,14 @@ export interface CancelStreamForm {
   recipient: string
   strmMetadata: string
   tokenAccount?: AssetAccount
+}
+
+export interface SaberPoolsDepositForm {
+  governedAccount: AssetAccount | undefined
+  poolName?: SupportedSaberPoolNames
+  uiTokenAmountA: number
+  uiTokenAmountB: number
+  uiMinimumPoolTokenAmount: number
 }
 
 export const programUpgradeFormNameOf = getNameOf<ProgramUpgradeForm>()
@@ -593,6 +602,7 @@ export enum Instructions {
   SerumUpdateGovConfigAuthority,
   JoinDAO,
   ClaimMangoTokens,
+  DepositToSaberPool,
 }
 
 export type createParams = [

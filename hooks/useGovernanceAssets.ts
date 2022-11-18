@@ -589,6 +589,11 @@ export default function useGovernanceAssets() {
       name: 'Serum: Update Governance Config Authority',
       isVisible: canUseAnyInstruction,
     },
+    {
+      id: Instructions.DepositToSaberPool,
+      name: 'Saber: Deposit to Pool',
+      isVisible: canUseAnyInstruction,
+    },
     ...foresightInstructions,
   ]
   return {
