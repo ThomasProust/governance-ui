@@ -1,29 +1,32 @@
+import { useContext, useEffect, useState } from 'react'
 import * as yup from 'yup'
 import { BN } from '@project-serum/anchor'
+import { depositInstruction } from '@saberhq/stableswap-sdk'
 import {
   Governance,
   ProgramAccount,
   serializeInstructionToBase64,
   TOKEN_PROGRAM_ID,
 } from '@solana/spl-governance'
-import useWalletStore from 'stores/useWalletStore'
-import { depositInstruction } from '@saberhq/stableswap-sdk'
-import { findAssociatedTokenAddress } from '@utils/associated'
+import { ASSOCIATED_TOKEN_PROGRAM_ID, Token } from '@solana/spl-token'
 import { PublicKey, TransactionInstruction } from '@solana/web3.js'
-import { findATAAddrSync } from '@utils/ataTools'
+import Input from '@components/inputs/Input'
+import Select from '@components/inputs/Select'
+import useGovernanceAssets from '@hooks/useGovernanceAssets'
 import saberPoolsConfiguration, { Pool } from '@tools/sdk/saber/pools'
-import { useContext, useEffect, useState } from 'react'
-import { NewProposalContext } from '../../../new'
 import { getMintNaturalAmountFromDecimalAsBN } from '@tools/sdk/units'
+import { findAssociatedTokenAddress } from '@utils/associated'
+import { findATAAddrSync } from '@utils/ataTools'
+import { isFormValid } from '@utils/formValidation'
 import {
   SaberPoolsDepositForm,
   UiInstruction,
 } from '@utils/uiTypes/proposalCreationTypes'
-import Input from '@components/inputs/Input'
-import Select from '@components/inputs/Select'
-import GovernedAccountSelect from '@components/inputs/GovernedAccountSelect'
-import useGovernanceAssets from '@hooks/useGovernanceAssets'
-import { isFormValid } from '@utils/formValidation'
+
+import useWalletStore from 'stores/useWalletStore'
+
+import { NewProposalContext } from '../../../new'
+import GovernedAccountSelect from '../../GovernedAccountSelect'
 
 async function deposit({
   authority,
@@ -76,7 +79,7 @@ async function deposit({
 }
 
 const schema = yup.object().shape({
-  governedAccount: yup
+  assetAccount: yup
     .object()
     .nullable()
     .required('Governed account is required'),
@@ -87,6 +90,40 @@ const schema = yup.object().shape({
     .moreThan(0, 'Minimum Pool Token Amount should be more than 0')
     .required('Minimum Pool Token Amount is required'),
 })
+
+function ata(mint: PublicKey, account: PublicKey): Promise<PublicKey> {
+  return Token.getAssociatedTokenAddress(
+    ASSOCIATED_TOKEN_PROGRAM_ID,
+    TOKEN_PROGRAM_ID,
+    mint,
+    account,
+    true
+  )
+}
+
+async function checkInitTokenAccount(
+  account: PublicKey,
+  instructions: TransactionInstruction[],
+  connection: any,
+  mint: PublicKey,
+  owner: PublicKey,
+  feePayer: PublicKey
+) {
+  const accountInfo = await connection.current.getAccountInfo(account)
+  if (accountInfo && accountInfo.lamports > 0) {
+    return
+  }
+  instructions.push(
+    Token.createAssociatedTokenAccountInstruction(
+      ASSOCIATED_TOKEN_PROGRAM_ID, // always ASSOCIATED_TOKEN_PROGRAM_ID
+      TOKEN_PROGRAM_ID, // always TOKEN_PROGRAM_ID
+      mint, // mint
+      account, // ata
+      owner, // owner of token account
+      feePayer
+    )
+  )
+}
 
 const Deposit = ({
   index,
@@ -119,7 +156,7 @@ const Deposit = ({
   }>(null)
 
   const [form, setForm] = useState<SaberPoolsDepositForm>({
-    governedAccount: undefined,
+    assetAccount: undefined,
     uiTokenAmountA: 0,
     uiTokenAmountB: 0,
     uiMinimumPoolTokenAmount: 0,
@@ -132,7 +169,7 @@ const Deposit = ({
 
   useEffect(() => {
     ;(async () => {
-      if (!form.governedAccount?.pubkey) {
+      if (!form.assetAccount?.pubkey || !form.assetAccount.extensions.token) {
         return
       }
 
@@ -141,33 +178,58 @@ const Deposit = ({
         return
       }
 
+      const sourceAccount = form.assetAccount.extensions.token.account.owner
+      const assetTokenMint = form.assetAccount.extensions.token?.account.mint
+
+      // We check if the asset account selected has at least one token common to the selected pool
+      if (
+        !assetTokenMint.equals(pool.tokenAccountA.tokenMint) &&
+        !assetTokenMint.equals(pool.tokenAccountB.tokenMint)
+      ) {
+        setAssociatedTokenAccounts(null)
+        return
+      }
+
       const [sourceA] = findATAAddrSync(
-        form.governedAccount.pubkey,
+        sourceAccount,
         pool.tokenAccountA.tokenMint
       )
 
       const [sourceB] = findATAAddrSync(
-        form.governedAccount.pubkey,
+        sourceAccount,
         pool.tokenAccountB.tokenMint
       )
 
-      const [amountA, amountB] = await Promise.all([
+      const [resA, resB] = await Promise.allSettled([
         connection.current.getTokenAccountBalance(sourceA),
         connection.current.getTokenAccountBalance(sourceB),
       ])
+      let amountA = ''
+      if (resA.status !== 'rejected') {
+        amountA = resA.value.value.uiAmountString ?? ''
+      }
+      let amountB = ''
+      if (resB.status !== 'rejected') {
+        amountB = resB.value.value.uiAmountString ?? ''
+      }
 
       setAssociatedTokenAccounts({
         A: {
           account: sourceA,
-          uiBalance: amountA.value.uiAmountString ?? '',
+          uiBalance: amountA,
         },
         B: {
           account: sourceB,
-          uiBalance: amountB.value.uiAmountString ?? '',
+          uiBalance: amountB,
         },
       })
     })()
-  }, [pool, form.governedAccount?.pubkey, connection])
+  }, [
+    pool,
+    form.assetAccount?.pubkey,
+    form.assetAccount?.extensions.token,
+    connection,
+  ])
 
   const validateInstruction = async (): Promise<boolean> => {
     const { isValid, validationErrors } = await isFormValid(schema, form)
@@ -182,18 +244,31 @@ const Deposit = ({
       !connection ||
       !isValid ||
       !pool ||
-      !form.governedAccount?.governance.account ||
+      !form.assetAccount?.governance ||
+      !form.assetAccount.extensions.token ||
       !wallet?.publicKey
     ) {
       return {
         serializedInstruction: '',
         isValid: false,
-        governance: form.governedAccount?.governance,
+        governance: form.assetAccount?.governance,
       }
     }
+    const sourceAccount = form.assetAccount.extensions.token.account.owner // this one is OK for both type of treasury governance (points to either wallet or governance pubkey)
+
+    const prerequisiteInstructions: TransactionInstruction[] = []
+    const poolTokenAccount = await ata(pool.poolToken.mint, sourceAccount)
+    checkInitTokenAccount(
+      poolTokenAccount,
+      prerequisiteInstructions,
+      connection,
+      pool.poolToken.mint,
+      sourceAccount,
+      wallet.publicKey
+    )
 
     const ix = await deposit({
-      authority: form.governedAccount.governance.account.governedAccount,
+      authority: form.assetAccount.extensions.token.account.owner,
       pool,
       tokenAmountA: getMintNaturalAmountFromDecimalAsBN(
         form.uiTokenAmountA,
@@ -212,15 +287,16 @@ const Deposit = ({
     return {
       serializedInstruction: serializeInstructionToBase64(ix),
       isValid: true,
-      governance: form.governedAccount.governance,
+      governance: form.assetAccount.governance,
       shouldSplitIntoSeparateTxs: true,
+      prerequisiteInstructions,
     }
   }
 
   useEffect(() => {
     handleSetInstructions(
       {
-        governedAccount: form.governedAccount?.governance,
+        governedAccount: form.assetAccount?.governance,
         getInstruction,
       },
       index
@@ -234,10 +310,10 @@ const Deposit = ({
         label="Source account"
         governedAccounts={assetAccounts}
         onChange={(value) => {
-          handleSetForm({ value, propertyName: 'governedAccount' })
+          handleSetForm({ value, propertyName: 'assetAccount' })
         }}
-        value={form.governedAccount}
-        error={formErrors['governedAccount']}
+        value={form.assetAccount}
+        error={formErrors['assetAccount']}
         shouldBeGoverned={shouldBeGoverned}
         governance={governance}
       />
@@ -268,6 +344,7 @@ const Deposit = ({
             label={`${pool.tokenAccountA.name} Amount`}
             value={form.uiTokenAmountA}
             type="number"
+            disabled={associatedTokenAccounts?.A.uiBalance == ''}
             min="0"
             onChange={(evt) =>
               handleSetForm({
@@ -281,17 +358,22 @@ const Deposit = ({
           {associatedTokenAccounts ? (
             <div className="text-xs text-fgd-3 mt-0 flex flex-col">
               <span>
-                {pool.tokenAccountA.name} ATA:{' '}
+                {pool.tokenAccountA.name} ATA:
                 {associatedTokenAccounts?.A.account.toBase58() ?? '-'}
               </span>
 
-              <span>max: {associatedTokenAccounts?.A.uiBalance}</span>
+              <span>
+                {associatedTokenAccounts?.A.uiBalance !== ''
+                  ? `max: ${associatedTokenAccounts?.A.uiBalance}`
+                  : 'ACCOUNT NOT AVAILABLE'}
+              </span>
             </div>
           ) : null}
 
           <Input
             label={`${pool.tokenAccountB.name} Amount`}
             value={form.uiTokenAmountB}
+            disabled={associatedTokenAccounts?.B.uiBalance == ''}
             type="number"
             min="0"
             onChange={(evt) =>
@@ -310,7 +392,12 @@ const Deposit = ({
                 {associatedTokenAccounts?.B.account.toBase58() ?? '-'}
               </span>
 
-              <span>max: {associatedTokenAccounts?.B.uiBalance}</span>
+              <span>
+                {' '}
+                {associatedTokenAccounts?.B.uiBalance !== ''
+                  ? `max: ${associatedTokenAccounts?.B.uiBalance}`
+                  : 'ACCOUNT NOT AVAILABLE'}
+              </span>
             </div>
           ) : null}
 

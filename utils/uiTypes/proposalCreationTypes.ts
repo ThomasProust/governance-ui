@@ -206,7 +206,7 @@ export interface CancelStreamForm {
 }
 
 export interface SaberPoolsDepositForm {
-  governedAccount: AssetAccount | undefined
+  assetAccount: AssetAccount | undefined
   poolName?: SupportedSaberPoolNames
   uiTokenAmountA: number
   uiTokenAmountB: number
