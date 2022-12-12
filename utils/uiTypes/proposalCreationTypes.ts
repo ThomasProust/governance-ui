@@ -206,11 +206,27 @@ export interface CancelStreamForm {
 }
 
 export interface SaberPoolsDepositForm {
-  assetAccount: AssetAccount | undefined
+  assetAccount?: AssetAccount
   poolName?: SupportedSaberPoolNames
   uiTokenAmountA: number
   uiTokenAmountB: number
   uiMinimumPoolTokenAmount: number
+}
+
+export interface SaberPoolsWithdrawOneForm {
+  assetAccount?: AssetAccount
+  poolName?: SupportedSaberPoolNames
+  destinationAccount: string
+  baseTokenName: string
+  uiPoolTokenAmount: number
+  uiMinimumTokenAmount: number
+}
+
+export interface SaberPoolsSwapForm {
+  assetAccount?: AssetAccount
+  poolName?: SupportedSaberPoolNames
+  uiAmountIn: number
+  uiMinimumAmountOut: number
 }
 
 export const programUpgradeFormNameOf = getNameOf<ProgramUpgradeForm>()
@@ -603,6 +619,8 @@ export enum Instructions {
   JoinDAO,
   ClaimMangoTokens,
   DepositToSaberPool,
+  WithdrawFromSaberPool,
+  SwapWithSaberPool,
 }
 
 export type createParams = [

@@ -594,6 +594,16 @@ export default function useGovernanceAssets() {
       name: 'Saber: Deposit to Pool',
       isVisible: canUseAnyInstruction,
     },
+    {
+      id: Instructions.WithdrawFromSaberPool,
+      name: 'Saber: Withdraw from Pool',
+      isVisible: canUseAnyInstruction,
+    },
+    {
+      id: Instructions.SwapWithSaberPool,
+      name: 'Saber: Swap with Pool',
+      isVisible: canUseAnyInstruction,
+    },
     ...foresightInstructions,
   ]
   return {

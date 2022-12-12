@@ -91,16 +91,6 @@ const schema = yup.object().shape({
     .required('Minimum Pool Token Amount is required'),
 })
 
-function ata(mint: PublicKey, account: PublicKey): Promise<PublicKey> {
-  return Token.getAssociatedTokenAddress(
-    ASSOCIATED_TOKEN_PROGRAM_ID,
-    TOKEN_PROGRAM_ID,
-    mint,
-    account,
-    true
-  )
-}
-
 async function checkInitTokenAccount(
   account: PublicKey,
   instructions: TransactionInstruction[],
@@ -257,7 +247,10 @@ const Deposit = ({
     const sourceAccount = form.assetAccount.extensions.token.account.owner // this one is OK for both type of treasury governance (points to either wallet or governance pubkey)
 
     const prerequisiteInstructions: TransactionInstruction[] = []
-    const poolTokenAccount = await ata(pool.poolToken.mint, sourceAccount)
+    const [poolTokenAccount] = findATAAddrSync(
+      sourceAccount,
+      pool.poolToken.mint
+    )
     checkInitTokenAccount(
       poolTokenAccount,
       prerequisiteInstructions,
