@@ -30,14 +30,14 @@ type SwapSide = 'swapAforB' | 'swapBforA'
 async function swap({
   authority,
   pool,
-  amountIn,
-  minimumAmountOut,
+  naturalAmountIn,
+  naturalMinimumAmountOut,
   side,
 }: {
   authority: PublicKey
   pool: Pool
-  amountIn: BN
-  minimumAmountOut: BN
+  naturalAmountIn: BN
+  naturalMinimumAmountOut: BN
   side: SwapSide
 }): Promise<TransactionInstruction> {
   const sellToken =
@@ -57,9 +57,9 @@ async function swap({
   // Have to add manually the toBuffer method as it's required by the @saberhq/stableswap-sdk package
   // le = little endian
   // 8 = 8 bytes = 64 bits
-  amountIn.toBuffer = () => amountIn.toArrayLike(Buffer, 'le', 8)
-  minimumAmountOut.toBuffer = () =>
-    minimumAmountOut.toArrayLike(Buffer, 'le', 8)
+  naturalAmountIn.toBuffer = () => naturalAmountIn.toArrayLike(Buffer, 'le', 8)
+  naturalMinimumAmountOut.toBuffer = () =>
+    naturalMinimumAmountOut.toArrayLike(Buffer, 'le', 8)
 
   return swapInstruction({
     config: {
@@ -74,15 +74,15 @@ async function swap({
     poolDestination,
     userDestination,
     adminDestination,
-    amountIn,
-    minimumAmountOut,
+    amountIn: naturalAmountIn,
+    minimumAmountOut: naturalMinimumAmountOut,
   })
 }
 
 const schema = yup.object().shape({
   assetAccount: yup.object().nullable().required('Asset account is required'),
-  uiAmountIn: yup.number().required('Amount In is required'),
-  uiMinimumAmountOut: yup
+  amountIn: yup.number().required('Amount In is required'),
+  minimumAmountOut: yup
     .number()
     .moreThan(0, 'Minimum Amount Out should be more than 0')
     .required('Minimum Amount Out is required'),
@@ -106,8 +106,8 @@ const Swap = ({
 
   const [form, setForm] = useState<SaberPoolsSwapForm>({
     assetAccount: undefined,
-    uiAmountIn: 0,
-    uiMinimumAmountOut: 0,
+    amountIn: 0,
+    minimumAmountOut: 0,
   })
 
   const handleSetForm = ({ propertyName, value }) => {
@@ -144,12 +144,12 @@ const Swap = ({
     const ix = await swap({
       authority,
       pool,
-      amountIn: getMintNaturalAmountFromDecimalAsBN(
-        form.uiAmountIn,
+      naturalAmountIn: getMintNaturalAmountFromDecimalAsBN(
+        form.amountIn,
         pool.tokenAccountA.decimals
       ),
-      minimumAmountOut: getMintNaturalAmountFromDecimalAsBN(
-        form.uiMinimumAmountOut,
+      naturalMinimumAmountOut: getMintNaturalAmountFromDecimalAsBN(
+        form.minimumAmountOut,
         pool.poolToken.decimals
       ),
       side: swapSide,
@@ -233,16 +233,16 @@ const Swap = ({
                 ? pool.tokenAccountA.name
                 : pool.tokenAccountB.name
             } Amount`}
-            value={form.uiAmountIn}
+            value={form.amountIn}
             type="number"
             min="0"
             onChange={(evt) =>
               handleSetForm({
                 value: evt.target.value,
-                propertyName: 'uiAmountIn',
+                propertyName: 'amountIn',
               })
             }
-            error={formErrors['uiAmountIn']}
+            error={formErrors['amountIn']}
           />
 
           <Input
@@ -251,16 +251,16 @@ const Swap = ({
                 ? pool.tokenAccountB.name
                 : pool.tokenAccountA.name
             } Minimum Amount`}
-            value={form.uiMinimumAmountOut}
+            value={form.minimumAmountOut}
             type="number"
             min="0"
             onChange={(evt) =>
               handleSetForm({
                 value: evt.target.value,
-                propertyName: 'uiMinimumAmountOut',
+                propertyName: 'minimumAmountOut',
               })
             }
-            error={formErrors['uiMinimumAmountOut']}
+            error={formErrors['minimumAmountOut']}
           />
         </>
       ) : null}

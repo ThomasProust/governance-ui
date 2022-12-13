@@ -1,5 +1,6 @@
 import React, { useContext, useEffect, useState } from 'react'
 import * as yup from 'yup'
+import BigNumber from 'bignumber.js'
 import {
   Governance,
   ProgramAccount,
@@ -24,6 +25,7 @@ import { StyledLabel } from '@components/inputs/styles'
 import { getMintMetadata } from '@components/instructions/programs/streamflow'
 import Switch from '@components/Switch'
 import useGovernanceAssets from '@hooks/useGovernanceAssets'
+import { checkInitTokenAccount } from '@utils/ataTools'
 import { isFormValid } from '@utils/formValidation'
 import {
   CreateStreamForm,
@@ -35,7 +37,6 @@ import Input from 'components/inputs/Input'
 import useWalletStore from 'stores/useWalletStore'
 import { NewProposalContext } from '../../../new'
 import GovernedAccountSelect from '../../GovernedAccountSelect'
-import BigNumber from 'bignumber.js'
 
 const STREAMFLOW_TREASURY_PUBLIC_KEY = new PublicKey(
   '5SEpbdjFK5FxwTvfsGMXVQTD2v4M2c5tyRTxhdsPkgDw'
@@ -77,30 +78,6 @@ function ata(mint: PublicKey, account: PublicKey): Promise<PublicKey> {
     mint,
     account,
     true
-  )
-}
-
-async function checkInitTokenAccount(
-  account: PublicKey,
-  instructions: TransactionInstruction[],
-  connection: any,
-  mint: PublicKey,
-  owner: PublicKey,
-  feePayer: PublicKey
-) {
-  const accountInfo = await connection.current.getAccountInfo(account)
-  if (accountInfo && accountInfo.lamports > 0) {
-    return
-  }
-  instructions.push(
-    Token.createAssociatedTokenAccountInstruction(
-      ASSOCIATED_TOKEN_PROGRAM_ID, // always ASSOCIATED_TOKEN_PROGRAM_ID
-      TOKEN_PROGRAM_ID, // always TOKEN_PROGRAM_ID
-      mint, // mint
-      account, // ata
-      owner, // owner of token account
-      feePayer
-    )
   )
 }
 

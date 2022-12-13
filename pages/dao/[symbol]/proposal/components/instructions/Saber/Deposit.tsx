@@ -8,7 +8,6 @@ import {
   serializeInstructionToBase64,
   TOKEN_PROGRAM_ID,
 } from '@solana/spl-governance'
-import { ASSOCIATED_TOKEN_PROGRAM_ID, Token } from '@solana/spl-token'
 import { PublicKey, TransactionInstruction } from '@solana/web3.js'
 import Input from '@components/inputs/Input'
 import Select from '@components/inputs/Select'
@@ -16,7 +15,7 @@ import useGovernanceAssets from '@hooks/useGovernanceAssets'
 import saberPoolsConfiguration, { Pool } from '@tools/sdk/saber/pools'
 import { getMintNaturalAmountFromDecimalAsBN } from '@tools/sdk/units'
 import { findAssociatedTokenAddress } from '@utils/associated'
-import { findATAAddrSync } from '@utils/ataTools'
+import { findATAAddrSync, checkInitTokenAccount } from '@utils/ataTools'
 import { isFormValid } from '@utils/formValidation'
 import {
   SaberPoolsDepositForm,
@@ -31,15 +30,15 @@ import GovernedAccountSelect from '../../GovernedAccountSelect'
 async function deposit({
   authority,
   pool,
-  tokenAmountA,
-  tokenAmountB,
-  minimumPoolTokenAmount,
+  naturalTokenAmountA,
+  naturalTokenAmountB,
+  naturalMinimumPoolTokenAmount,
 }: {
   authority: PublicKey
   pool: Pool
-  tokenAmountA: BN
-  tokenAmountB: BN
-  minimumPoolTokenAmount: BN
+  naturalTokenAmountA: BN
+  naturalTokenAmountB: BN
+  naturalMinimumPoolTokenAmount: BN
 }): Promise<TransactionInstruction> {
   const poolTokenMintATA = await findAssociatedTokenAddress(
     authority,
@@ -53,10 +52,12 @@ async function deposit({
   // Have to add manually the toBuffer method as it's required by the @saberhq/stableswap-sdk package
   // le = little endian
   // 8 = 8 bytes = 64 bits
-  tokenAmountA.toBuffer = () => tokenAmountA.toArrayLike(Buffer, 'le', 8)
-  tokenAmountB.toBuffer = () => tokenAmountB.toArrayLike(Buffer, 'le', 8)
-  minimumPoolTokenAmount.toBuffer = () =>
-    minimumPoolTokenAmount.toArrayLike(Buffer, 'le', 8)
+  naturalTokenAmountA.toBuffer = () =>
+    naturalTokenAmountA.toArrayLike(Buffer, 'le', 8)
+  naturalTokenAmountB.toBuffer = () =>
+    naturalTokenAmountB.toArrayLike(Buffer, 'le', 8)
+  naturalMinimumPoolTokenAmount.toBuffer = () =>
+    naturalMinimumPoolTokenAmount.toArrayLike(Buffer, 'le', 8)
 
   return depositInstruction({
     config: {
@@ -72,9 +73,9 @@ async function deposit({
     tokenAccountB: pool.tokenAccountB.mint,
     poolTokenMint: pool.poolToken.mint,
     poolTokenAccount: poolTokenMintATA,
-    tokenAmountA,
-    tokenAmountB,
-    minimumPoolTokenAmount,
+    tokenAmountA: naturalTokenAmountA,
+    tokenAmountB: naturalTokenAmountB,
+    minimumPoolTokenAmount: naturalMinimumPoolTokenAmount,
   })
 }
 
@@ -83,37 +84,13 @@ const schema = yup.object().shape({
     .object()
     .nullable()
     .required('Governed account is required'),
-  uiTokenAmountA: yup.number().required('Amount for Token A is required'),
-  uiTokenAmountB: yup.number().required('Amount for Token B is required'),
-  uiMinimumPoolTokenAmount: yup
+  tokenAmountA: yup.number().required('Amount for Token A is required'),
+  tokenAmountB: yup.number().required('Amount for Token B is required'),
+  minimumPoolTokenAmount: yup
     .number()
     .moreThan(0, 'Minimum Pool Token Amount should be more than 0')
     .required('Minimum Pool Token Amount is required'),
 })
-
-async function checkInitTokenAccount(
-  account: PublicKey,
-  instructions: TransactionInstruction[],
-  connection: any,
-  mint: PublicKey,
-  owner: PublicKey,
-  feePayer: PublicKey
-) {
-  const accountInfo = await connection.current.getAccountInfo(account)
-  if (accountInfo && accountInfo.lamports > 0) {
-    return
-  }
-  instructions.push(
-    Token.createAssociatedTokenAccountInstruction(
-      ASSOCIATED_TOKEN_PROGRAM_ID, // always ASSOCIATED_TOKEN_PROGRAM_ID
-      TOKEN_PROGRAM_ID, // always TOKEN_PROGRAM_ID
-      mint, // mint
-      account, // ata
-      owner, // owner of token account
-      feePayer
-    )
-  )
-}
 
 const Deposit = ({
   index,
@@ -137,19 +114,19 @@ const Deposit = ({
   ] = useState<null | {
     A: {
       account: PublicKey
-      uiBalance: string
+      balance: number | null
     }
     B: {
       account: PublicKey
-      uiBalance: string
+      balance: number | null
     }
   }>(null)
 
   const [form, setForm] = useState<SaberPoolsDepositForm>({
     assetAccount: undefined,
-    uiTokenAmountA: 0,
-    uiTokenAmountB: 0,
-    uiMinimumPoolTokenAmount: 0,
+    tokenAmountA: 0,
+    tokenAmountB: 0,
+    minimumPoolTokenAmount: 0,
   })
 
   const handleSetForm = ({ propertyName, value }) => {
@@ -194,23 +171,20 @@ const Deposit = ({
         connection.current.getTokenAccountBalance(sourceA),
         connection.current.getTokenAccountBalance(sourceB),
       ])
-      let amountA = ''
-      if (resA.status !== 'rejected') {
-        amountA = resA.value.value.uiAmountString ?? ''
-      }
-      let amountB = ''
-      if (resB.status !== 'rejected') {
-        amountB = resB.value.value.uiAmountString ?? ''
-      }
+      const amountA =
+        resA.status !== 'rejected' ? resA.value.value.uiAmount : null
+
+      const amountB =
+        resB.status !== 'rejected' ? resB.value.value.uiAmount : null
 
       setAssociatedTokenAccounts({
         A: {
           account: sourceA,
-          uiBalance: amountA,
+          balance: amountA,
         },
         B: {
           account: sourceB,
-          uiBalance: amountB,
+          balance: amountB,
         },
       })
     })()
@@ -263,16 +237,16 @@ const Deposit = ({
     const ix = await deposit({
       authority: form.assetAccount.extensions.token.account.owner,
       pool,
-      tokenAmountA: getMintNaturalAmountFromDecimalAsBN(
-        form.uiTokenAmountA,
+      naturalTokenAmountA: getMintNaturalAmountFromDecimalAsBN(
+        form.tokenAmountA,
         pool.tokenAccountA.decimals
       ),
-      tokenAmountB: getMintNaturalAmountFromDecimalAsBN(
-        form.uiTokenAmountB,
+      naturalTokenAmountB: getMintNaturalAmountFromDecimalAsBN(
+        form.tokenAmountB,
         pool.tokenAccountB.decimals
       ),
-      minimumPoolTokenAmount: getMintNaturalAmountFromDecimalAsBN(
-        form.uiMinimumPoolTokenAmount,
+      naturalMinimumPoolTokenAmount: getMintNaturalAmountFromDecimalAsBN(
+        form.minimumPoolTokenAmount,
         pool.poolToken.decimals
       ),
     })
@@ -335,17 +309,17 @@ const Deposit = ({
         <>
           <Input
             label={`${pool.tokenAccountA.name} Amount`}
-            value={form.uiTokenAmountA}
+            value={form.tokenAmountA}
             type="number"
-            disabled={associatedTokenAccounts?.A.uiBalance == ''}
+            disabled={!!associatedTokenAccounts?.A.balance}
             min="0"
             onChange={(evt) =>
               handleSetForm({
                 value: evt.target.value,
-                propertyName: 'uiTokenAmountA',
+                propertyName: 'tokenAmountA',
               })
             }
-            error={formErrors['uiTokenAmountA']}
+            error={formErrors['tokenAmountA']}
           />
 
           {associatedTokenAccounts ? (
@@ -356,8 +330,8 @@ const Deposit = ({
               </span>
 
               <span>
-                {associatedTokenAccounts?.A.uiBalance !== ''
-                  ? `max: ${associatedTokenAccounts?.A.uiBalance}`
+                {associatedTokenAccounts?.A.balance
+                  ? `max: ${associatedTokenAccounts?.A.balance}`
                   : 'ACCOUNT NOT AVAILABLE'}
               </span>
             </div>
@@ -365,17 +339,17 @@ const Deposit = ({
 
           <Input
             label={`${pool.tokenAccountB.name} Amount`}
-            value={form.uiTokenAmountB}
-            disabled={associatedTokenAccounts?.B.uiBalance == ''}
+            value={form.tokenAmountB}
+            disabled={!!associatedTokenAccounts?.B.balance}
             type="number"
             min="0"
             onChange={(evt) =>
               handleSetForm({
                 value: evt.target.value,
-                propertyName: 'uiTokenAmountB',
+                propertyName: 'tokenAmountB',
               })
             }
-            error={formErrors['uiTokenAmountB']}
+            error={formErrors['tokenAmountB']}
           />
 
           {associatedTokenAccounts ? (
@@ -387,8 +361,8 @@ const Deposit = ({
 
               <span>
                 {' '}
-                {associatedTokenAccounts?.B.uiBalance !== ''
-                  ? `max: ${associatedTokenAccounts?.B.uiBalance}`
+                {associatedTokenAccounts?.B.balance
+                  ? `max: ${associatedTokenAccounts?.B.balance}`
                   : 'ACCOUNT NOT AVAILABLE'}
               </span>
             </div>
@@ -396,16 +370,16 @@ const Deposit = ({
 
           <Input
             label={`${pool.poolToken.name} Minimum Amount`}
-            value={form.uiMinimumPoolTokenAmount}
+            value={form.minimumPoolTokenAmount}
             type="number"
             min="0"
             onChange={(evt) =>
               handleSetForm({
                 value: evt.target.value,
-                propertyName: 'uiMinimumPoolTokenAmount',
+                propertyName: 'minimumPoolTokenAmount',
               })
             }
-            error={formErrors['uiMinimumPoolTokenAmount']}
+            error={formErrors['minimumPoolTokenAmount']}
           />
         </>
       )}

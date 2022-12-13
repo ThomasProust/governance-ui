@@ -29,15 +29,15 @@ async function withdrawOne({
   pool,
   destinationAccount,
   baseTokenName,
-  poolTokenAmount,
-  minimumTokenAmount,
+  naturalPoolTokenAmount,
+  naturalMinimumTokenAmount,
 }: {
   authority: PublicKey
   pool: Pool
   destinationAccount: PublicKey
   baseTokenName: string
-  poolTokenAmount: BN
-  minimumTokenAmount: BN
+  naturalPoolTokenAmount: BN
+  naturalMinimumTokenAmount: BN
 }): Promise<TransactionInstruction> {
   const poolTokenMintATA = await findAssociatedTokenAddress(
     authority,
@@ -48,9 +48,10 @@ async function withdrawOne({
   // Have to add manually the toBuffer method as it's required by the @saberhq/stableswap-sdk package
   // le = little endian
   // 8 = 8 bytes = 64 bits
-  poolTokenAmount.toBuffer = () => poolTokenAmount.toArrayLike(Buffer, 'le', 8)
-  minimumTokenAmount.toBuffer = () =>
-    minimumTokenAmount.toArrayLike(Buffer, 'le', 8)
+  naturalPoolTokenAmount.toBuffer = () =>
+    naturalPoolTokenAmount.toArrayLike(Buffer, 'le', 8)
+  naturalMinimumTokenAmount.toBuffer = () =>
+    naturalMinimumTokenAmount.toArrayLike(Buffer, 'le', 8)
 
   // Depending on the token we withdraw (tokenA or tokenB) then it changes the base/quote/admin mints
   let baseTokenAccount = pool.tokenAccountA.mint
@@ -77,8 +78,8 @@ async function withdrawOne({
     quoteTokenAccount,
     destinationAccount,
     adminDestinationAccount,
-    poolTokenAmount,
-    minimumTokenAmount,
+    poolTokenAmount: naturalPoolTokenAmount,
+    minimumTokenAmount: naturalMinimumTokenAmount,
   })
 }
 
@@ -89,11 +90,11 @@ const schema = yup.object().shape({
     .required('Governed account is required'),
   destinationAccount: yup.string().required('Destination Account is required'),
   baseTokenName: yup.string().required('Base Token Name is required'),
-  uiPoolTokenAmount: yup
+  poolTokenAmount: yup
     .number()
     .moreThan(0, 'Pool Token Amount needs to be more than 0')
     .required('Pool Token Amount is required'),
-  uiMinimumTokenAmount: yup
+  minimumTokenAmount: yup
     .number()
     .moreThan(0, 'Minimum Token Amount needs to be more than 0')
     .required('Minimum Token Amount is required'),
@@ -117,8 +118,8 @@ const WithdrawOne = ({
   const [form, setForm] = useState<SaberPoolsWithdrawOneForm>({
     baseTokenName: '',
     destinationAccount: '',
-    uiPoolTokenAmount: 0,
-    uiMinimumTokenAmount: 0,
+    poolTokenAmount: 0,
+    minimumTokenAmount: 0,
   })
 
   const handleSetForm = ({ propertyName, value }) => {
@@ -157,12 +158,12 @@ const WithdrawOne = ({
       pool,
       destinationAccount: new PublicKey(form.destinationAccount!),
       baseTokenName: form.baseTokenName!,
-      poolTokenAmount: getMintNaturalAmountFromDecimalAsBN(
-        form.uiPoolTokenAmount,
+      naturalPoolTokenAmount: getMintNaturalAmountFromDecimalAsBN(
+        form.poolTokenAmount,
         pool.poolToken.decimals
       ),
-      minimumTokenAmount: getMintNaturalAmountFromDecimalAsBN(
-        form.uiMinimumTokenAmount,
+      naturalMinimumTokenAmount: getMintNaturalAmountFromDecimalAsBN(
+        form.minimumTokenAmount,
         form.baseTokenName === pool.tokenAccountA.name
           ? pool.tokenAccountA.decimals
           : pool.tokenAccountB.decimals
@@ -261,32 +262,32 @@ const WithdrawOne = ({
 
           <Input
             label={`${pool.poolToken.name} Amount To Withdraw`}
-            value={form.uiPoolTokenAmount}
+            value={form.poolTokenAmount}
             type="number"
             min="0"
             onChange={(evt) =>
               handleSetForm({
                 value: evt.target.value,
-                propertyName: 'uiPoolTokenAmount',
+                propertyName: 'poolTokenAmount',
               })
             }
-            error={formErrors['uiPoolTokenAmount']}
+            error={formErrors['poolTokenAmount']}
           />
 
           <Input
             label={`Minimum ${
               form.baseTokenName ? `${form.baseTokenName} ` : ''
             }Amount To Withdraw`}
-            value={form.uiMinimumTokenAmount}
+            value={form.minimumTokenAmount}
             type="number"
             min="0"
             onChange={(evt) =>
               handleSetForm({
                 value: evt.target.value,
-                propertyName: 'uiMinimumTokenAmount',
+                propertyName: 'minimumTokenAmount',
               })
             }
-            error={formErrors['uiMinimumTokenAmount']}
+            error={formErrors['minimumTokenAmount']}
           />
         </>
       )}
