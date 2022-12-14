@@ -532,6 +532,8 @@ export enum Instructions {
   ClaimMangoTokens,
   ClaimPendingDeposit,
   ClaimPendingWithdraw,
+  CreateStream,
+  CancelStream,
   Clawback,
   CloseTokenAccount,
   ConfigureGatewayPlugin,

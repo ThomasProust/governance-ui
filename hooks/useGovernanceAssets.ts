@@ -779,14 +779,14 @@ export default function useGovernanceAssets() {
       ███████    ██    ██   ██ ███████ ██   ██ ██      ██ ██      ███████  ██████   ███ ███
     */
 
-    // [Instructions.CancelStream]: {
-    //   name: 'Cancel Vesting Contract',
-    //   packageId: PackageEnum.Streamflow,
-    // },
-    // [Instructions.CreateStream]: {
-    //   name: 'Create Vesting Contract',
-    //   packageId: PackageEnum.Streamflow,
-    // },
+    [Instructions.CancelStream]: {
+      name: 'Cancel Vesting Contract',
+      packageId: PackageEnum.Streamflow,
+    },
+    [Instructions.CreateStream]: {
+      name: 'Create Vesting Contract',
+      packageId: PackageEnum.Streamflow,
+    },
 
     /*
       ███████ ██     ██ ██ ████████  ██████ ██   ██ ██████   ██████   █████  ██████  ██████
