@@ -3933,6 +3933,17 @@
     tiny-invariant "^1.3.1"
     tslib "^2.4.0"
 
+"@saberhq/stableswap-sdk@1.14.11":
+  version "1.14.11"
+  resolved "https://registry.yarnpkg.com/@saberhq/stableswap-sdk/-/stableswap-sdk-1.14.11.tgz#88397d8a546888a92f767d98c83586ef0ced2f1d"
+  integrity sha512-nEOLIFC1QyeoNOtIQMotlyaGfYCsmyJJn0HqrjJL2tcX87zWOmH5aEEfhmg9jJ19aiFYPvQeQ6h8eKp+nFk9Ow==
+  dependencies:
+    "@saberhq/solana-contrib" "^1.14.11"
+    "@saberhq/token-utils" "^1.14.11"
+    "@solana/buffer-layout" "^4.0.0"
+    tiny-invariant "^1.3.1"
+    tslib "^2.4.0"
+
 "@saberhq/token-utils@1.12.53":
   version "1.12.53"
   resolved "https://registry.yarnpkg.com/@saberhq/token-utils/-/token-utils-1.12.53.tgz#405cebd330e68e537b4ce5ffc21462eced22cba7"
@@ -11101,6 +11112,11 @@ is-weakset@^2.0.1:
     call-bind "^1.0.2"
     get-intrinsic "^1.1.1"
 
+is-what@^4.1.8:
+  version "4.1.8"
+  resolved "https://registry.yarnpkg.com/is-what/-/is-what-4.1.8.tgz#0e2a8807fda30980ddb2571c79db3d209b14cbe4"
+  integrity sha512-yq8gMao5upkPoGEU9LsB2P+K3Kt8Q3fQFCGyNCWOAnJAMzEXVV9drYb0TXr42TTliLLhKIBvulgAXgtLLnwzGA==
+
 is-windows@^1.0.1:
   version "1.0.2"
   resolved "https://registry.yarnpkg.com/is-windows/-/is-windows-1.0.2.tgz#d1850eb9791ecd18e6182ce12a30f396634bb19d"
@@ -15245,6 +15261,11 @@ remark-rehype@^9.0.0:
     mdast-util-to-hast "^11.0.0"
     unified "^10.0.0"
 
+remove-accents@0.4.2:
+  version "0.4.2"
+  resolved "https://registry.yarnpkg.com/remove-accents/-/remove-accents-0.4.2.tgz#0a43d3aaae1e80db919e07ae254b285d9e1c7bb5"
+  integrity sha512-7pXIJqJOq5tFgG1A2Zxti3Ht8jJF337m4sowbuHsW30ZnkQFnDzy9qBNhgzX8ZLW4+UBcXiiR7SwR6pokHsxiA==
+
 request@^2.88.2:
   version "2.88.2"
   resolved "https://registry.yarnpkg.com/request/-/request-2.88.2.tgz#d73c918731cb5a87da047e207234146f664d12b3"
@@ -16159,6 +16180,13 @@ superagent@^7.1.3:
     qs "^6.10.3"
     readable-stream "^3.6.0"
     semver "^7.3.7"
+
+superjson@^1.10.0:
+  version "1.12.0"
+  resolved "https://registry.yarnpkg.com/superjson/-/superjson-1.12.0.tgz#7b314b982bfebc5b8e56054b8528813fdda8fc7a"
+  integrity sha512-B4tefmFqj8KDShHi2br2rz0kBlUJuQHtxMCydEuHvooL+6EscROTNWRfOLMDxW1dS/daK2zZr3C3N9DU+jXATQ==
+  dependencies:
+    copy-anything "^3.0.2"
 
 superstruct@0.15.4:
   version "0.15.4"

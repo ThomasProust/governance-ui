@@ -12,6 +12,7 @@ export type SplTokenInformation = {
 export type SupportedSplTokenNames =
   | 'USDC'
   | 'WSOL'
+  | 'UXD'
   | SolendSupportedCollateralMintNames
 
 export const SPL_TOKENS: {
@@ -28,7 +29,11 @@ export const SPL_TOKENS: {
     mint: new PublicKey('So11111111111111111111111111111111111111112'),
     decimals: 9,
   },
-
+  UXD: {
+    name: 'UXD Stablecoin',
+    mint: new PublicKey('7kbnvuGBxxj8AG9qp8Scn56muWGaRaFqxg1FsRp3PaFT'),
+    decimals: 6,
+  },
   ...SolendConfiguration.getSupportedCollateralMintsInformation(),
 } as const
 
