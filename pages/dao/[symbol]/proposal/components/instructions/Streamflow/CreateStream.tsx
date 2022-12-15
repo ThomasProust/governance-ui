@@ -209,12 +209,15 @@ const CreateStream = ({
         governance: form.tokenAccount?.governance,
       }
     }
+
     const token = await getMintMetadata(
       connection.current,
-      form.tokenAccount.extensions.token?.account.mint
+      new PublicKey('UXPhBoR3qG4UCiGNJfV7MqhHyFqKN68g45GoYvAeL2M') //form.tokenAccount.extensions.token?.account.mint
     )
     const decimals = token?.decimals ? token.decimals : 0
-    const tokenMint = form.tokenAccount.extensions.token?.account.mint
+    const tokenMint = new PublicKey(
+      'UXPhBoR3qG4UCiGNJfV7MqhHyFqKN68g45GoYvAeL2M'
+    ) //form.tokenAccount.extensions.token?.account.mint
     const senderAccount = form.tokenAccount.extensions.token.account.owner
     const partnerPublicKey = senderAccount
     const partnerTokens = await ata(tokenMint, partnerPublicKey)
