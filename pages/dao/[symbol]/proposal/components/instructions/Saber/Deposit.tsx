@@ -104,7 +104,7 @@ const Deposit = ({
   const shouldBeGoverned = !!(index !== 0 && governance)
   const [formErrors, setFormErrors] = useState({})
   const { handleSetInstructions } = useContext(NewProposalContext)
-  const { assetAccounts } = useGovernanceAssets()
+  const { governedTokenAccountsWithoutNfts } = useGovernanceAssets()
 
   const [pool, setPool] = useState<Pool | null>(null)
 
@@ -147,7 +147,16 @@ const Deposit = ({
 
       const sourceAccount = form.assetAccount.extensions.token.account.owner
       const assetTokenMint = form.assetAccount.extensions.token?.account.mint
-
+      console.log('sourceAccount', sourceAccount.toBase58())
+      console.log('assetTokenMint', assetTokenMint.toBase58())
+      console.log(
+        'pool.tokenAccountA.tokenMint',
+        pool.tokenAccountA.tokenMint.toBase58()
+      )
+      console.log(
+        'pool.tokenAccountB.tokenMint',
+        pool.tokenAccountB.tokenMint.toBase58()
+      )
       // We check if the asset account selected has at least one token common to the selected pool
       if (
         !assetTokenMint.equals(pool.tokenAccountA.tokenMint) &&
@@ -176,6 +185,9 @@ const Deposit = ({
 
       const amountB =
         resB.status !== 'rejected' ? resB.value.value.uiAmount : null
+
+      console.log('amountA', !!amountA)
+      console.log('amountB', !!amountB)
 
       setAssociatedTokenAccounts({
         A: {
@@ -275,7 +287,7 @@ const Deposit = ({
     <>
       <GovernedAccountSelect
         label="Source account"
-        governedAccounts={assetAccounts}
+        governedAccounts={governedTokenAccountsWithoutNfts}
         onChange={(value) => {
           handleSetForm({ value, propertyName: 'assetAccount' })
         }}
@@ -283,6 +295,7 @@ const Deposit = ({
         error={formErrors['assetAccount']}
         shouldBeGoverned={shouldBeGoverned}
         governance={governance}
+        type="token"
       />
       <Select
         label="Pool"
@@ -311,7 +324,7 @@ const Deposit = ({
             label={`${pool.tokenAccountA.name} Amount`}
             value={form.tokenAmountA}
             type="number"
-            disabled={!!associatedTokenAccounts?.A.balance}
+            disabled={!associatedTokenAccounts?.A.balance}
             min="0"
             onChange={(evt) =>
               handleSetForm({
@@ -340,7 +353,7 @@ const Deposit = ({
           <Input
             label={`${pool.tokenAccountB.name} Amount`}
             value={form.tokenAmountB}
-            disabled={!!associatedTokenAccounts?.B.balance}
+            disabled={!associatedTokenAccounts?.B.balance}
             type="number"
             min="0"
             onChange={(evt) =>

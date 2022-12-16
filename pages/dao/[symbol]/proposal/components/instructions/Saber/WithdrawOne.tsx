@@ -112,7 +112,7 @@ const WithdrawOne = ({
   const shouldBeGoverned = !!(index !== 0 && governance)
   const [formErrors, setFormErrors] = useState({})
   const { handleSetInstructions } = useContext(NewProposalContext)
-  const { assetAccounts } = useGovernanceAssets()
+  const { governedTokenAccountsWithoutNfts } = useGovernanceAssets()
   const [pool, setPool] = useState<Pool | null>(null)
 
   const [form, setForm] = useState<SaberPoolsWithdrawOneForm>({
@@ -193,7 +193,7 @@ const WithdrawOne = ({
     <>
       <GovernedAccountSelect
         label="Source Account"
-        governedAccounts={assetAccounts}
+        governedAccounts={governedTokenAccountsWithoutNfts}
         onChange={(value) => {
           handleSetForm({ value, propertyName: 'assetAccount' })
         }}
@@ -201,6 +201,7 @@ const WithdrawOne = ({
         error={formErrors['assetAccount']}
         shouldBeGoverned={shouldBeGoverned}
         governance={governance}
+        type="token"
       />
       <Select
         label="Pool"

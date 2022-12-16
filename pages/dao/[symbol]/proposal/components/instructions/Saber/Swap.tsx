@@ -100,7 +100,7 @@ const Swap = ({
   const shouldBeGoverned = !!(index !== 0 && governance)
   const [formErrors, setFormErrors] = useState({})
   const { handleSetInstructions } = useContext(NewProposalContext)
-  const { assetAccounts } = useGovernanceAssets()
+  const { governedTokenAccountsWithoutNfts } = useGovernanceAssets()
   const [pool, setPool] = useState<Pool | null>(null)
   const [swapSide, setSwapSide] = useState<SwapSide>('swapAforB')
 
@@ -177,7 +177,7 @@ const Swap = ({
     <>
       <GovernedAccountSelect
         label="Source Account"
-        governedAccounts={assetAccounts}
+        governedAccounts={governedTokenAccountsWithoutNfts}
         onChange={(value) => {
           handleSetForm({ value, propertyName: 'assetAccount' })
         }}
@@ -185,6 +185,7 @@ const Swap = ({
         error={formErrors['assetAccount']}
         shouldBeGoverned={shouldBeGoverned}
         governance={governance}
+        type="token"
       />
       <Select
         label="Pool"
