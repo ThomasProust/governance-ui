@@ -136,6 +136,7 @@ import DualWithdraw from './components/instructions/Dual/DualWithdraw'
 import DualExercise from './components/instructions/Dual/DualExercise'
 import DepositToSaberPool from './components/instructions/Saber/Deposit'
 import WithdrawOneFromSaberPool from './components/instructions/Saber/WithdrawOne'
+import WithdrawFromSaberPool from './components/instructions/Saber/Withdraw'
 import SwapWithSaberPool from './components/instructions/Saber/Swap'
 
 const TITLE_LENGTH_LIMIT = 130
@@ -550,6 +551,7 @@ const New = () => {
       [Instructions.RemoveServiceFromDID]: RemoveServiceFromDID,
       [Instructions.DepositToSaberPool]: DepositToSaberPool,
       [Instructions.WithdrawOneFromSaberPool]: WithdrawOneFromSaberPool,
+      [Instructions.WithdrawFromSaberPool]: WithdrawFromSaberPool,
       [Instructions.SwapWithSaberPool]: SwapWithSaberPool,
     }),
     []

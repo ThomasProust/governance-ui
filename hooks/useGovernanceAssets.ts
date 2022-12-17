@@ -847,6 +847,11 @@ export default function useGovernanceAssets() {
       isVisible: canUseAnyInstruction,
       packageId: PackageEnum.Saber,
     },
+    [Instructions.WithdrawFromSaberPool]: {
+      name: 'Saber: Withraw from Pool',
+      isVisible: canUseAnyInstruction,
+      packageId: PackageEnum.Saber,
+    },
     [Instructions.SwapWithSaberPool]: {
       name: 'Saber: Swap with Pool',
       isVisible: canUseAnyInstruction,

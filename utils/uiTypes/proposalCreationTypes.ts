@@ -545,6 +545,14 @@ export interface SaberPoolsWithdrawOneForm {
   minimumTokenAmount: number
 }
 
+export interface SaberPoolsWithdrawForm {
+  assetAccount?: AssetAccount
+  poolName?: SupportedSaberPoolNames
+  poolTokenAmount: number
+  minimumTokenAAmount: number
+  minimumTokenBAmount: number
+}
+
 export interface SaberPoolsSwapForm {
   assetAccount?: AssetAccount
   poolName?: SupportedSaberPoolNames
@@ -648,6 +656,7 @@ export enum Instructions {
   RemoveServiceFromDID,
   DepositToSaberPool,
   WithdrawOneFromSaberPool,
+  WithdrawFromSaberPool,
   SwapWithSaberPool,
 }
 
