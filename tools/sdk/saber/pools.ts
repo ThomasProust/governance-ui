@@ -2,6 +2,7 @@ import { PublicKey } from '@solana/web3.js'
 import { SPL_TOKENS } from '@utils/splTokens'
 
 export type SupportedSaberPoolNames = 'UXDxUSDC'
+export type SwapSide = 'swapAforB' | 'swapBforA'
 
 export type Pool = {
   poolToken: {
@@ -79,6 +80,7 @@ class SaberPools {
   public readonly stableSwapInstructions = {
     swap: 1,
     deposit: 2,
+    withdraw: 3,
     withdrawOne: 4,
   }
 

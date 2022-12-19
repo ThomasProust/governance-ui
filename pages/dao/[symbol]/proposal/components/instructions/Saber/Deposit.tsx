@@ -147,16 +147,6 @@ const Deposit = ({
 
       const sourceAccount = form.assetAccount.extensions.token.account.owner
       const assetTokenMint = form.assetAccount.extensions.token?.account.mint
-      console.log('sourceAccount', sourceAccount.toBase58())
-      console.log('assetTokenMint', assetTokenMint.toBase58())
-      console.log(
-        'pool.tokenAccountA.tokenMint',
-        pool.tokenAccountA.tokenMint.toBase58()
-      )
-      console.log(
-        'pool.tokenAccountB.tokenMint',
-        pool.tokenAccountB.tokenMint.toBase58()
-      )
       // We check if the asset account selected has at least one token common to the selected pool
       if (
         !assetTokenMint.equals(pool.tokenAccountA.tokenMint) &&
@@ -185,9 +175,6 @@ const Deposit = ({
 
       const amountB =
         resB.status !== 'rejected' ? resB.value.value.uiAmount : null
-
-      console.log('amountA', !!amountA)
-      console.log('amountB', !!amountB)
 
       setAssociatedTokenAccounts({
         A: {

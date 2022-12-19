@@ -11,7 +11,7 @@ import {
   TOKEN_PROGRAM_ID,
 } from '@solana/spl-governance'
 import { PublicKey, TransactionInstruction } from '@solana/web3.js'
-import saberPoolsConfiguration, { Pool } from '@tools/sdk/saber/pools'
+import saberPoolsConfiguration, { Pool, SwapSide } from '@tools/sdk/saber/pools'
 import { getMintNaturalAmountFromDecimalAsBN } from '@tools/sdk/units'
 import { findATAAddrSync } from '@utils/ataTools'
 import { isFormValid } from '@utils/formValidation'
@@ -24,8 +24,6 @@ import useWalletStore from 'stores/useWalletStore'
 import * as yup from 'yup'
 import { NewProposalContext } from '../../../new'
 import GovernedAccountSelect from '../../GovernedAccountSelect'
-
-type SwapSide = 'swapAforB' | 'swapBforA'
 
 async function swap({
   authority,
