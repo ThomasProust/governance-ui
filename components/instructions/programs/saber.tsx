@@ -209,8 +209,8 @@ export const SABER_POOLS_PROGRAM_INSTRUCTIONS = {
       ) => {
         const tokenAccountA = accounts[5].pubkey
         const tokenAccountB = accounts[6].pubkey
-        const destAccountA = accounts[9].pubkey
-        const destAccountB = accounts[10].pubkey
+        const destAccountA = accounts[7].pubkey
+        const destAccountB = accounts[8].pubkey
 
         const pool = saberPoolsConfiguration.getPoolByTokenAccounts(
           tokenAccountA,
