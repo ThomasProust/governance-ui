@@ -11,6 +11,7 @@ import { consts as foresightConsts } from '@foresight-tmp/foresight-sdk'
 import { AssetAccount, StakeAccount } from '@utils/uiTypes/assets'
 import { RealmInfo } from '@models/registry/api'
 import * as Msp from '@mean-dao/msp'
+import { SupportedSaberPoolNames } from '@tools/sdk/saber/pools'
 
 // Alphabetical order
 export enum PackageEnum {
@@ -32,6 +33,7 @@ export enum PackageEnum {
   Switchboard,
   VsrPlugin,
   Dual,
+  Saber,
 }
 
 export interface UiInstruction {
@@ -526,6 +528,38 @@ export interface JoinDAOForm {
   amount?: number
 }
 
+export interface SaberPoolsDepositForm {
+  assetAccount?: AssetAccount
+  poolName?: SupportedSaberPoolNames
+  tokenAmountA: number
+  tokenAmountB: number
+  minimumPoolTokenAmount: number
+}
+
+export interface SaberPoolsWithdrawOneForm {
+  assetAccount?: AssetAccount
+  poolName?: SupportedSaberPoolNames
+  destinationAccount: string
+  baseTokenName: string
+  poolTokenAmount: number
+  minimumTokenAmount: number
+}
+
+export interface SaberPoolsWithdrawForm {
+  assetAccount?: AssetAccount
+  poolName?: SupportedSaberPoolNames
+  poolTokenAmount: number
+  minimumTokenAAmount: number
+  minimumTokenBAmount: number
+}
+
+export interface SaberPoolsSwapForm {
+  assetAccount?: AssetAccount
+  poolName?: SupportedSaberPoolNames
+  amountIn: number
+  minimumAmountOut: number
+}
+
 export enum Instructions {
   Base64,
   ChangeMakeDonation,
@@ -620,6 +654,10 @@ export enum Instructions {
   RemoveKeyFromDID,
   AddServiceToDID,
   RemoveServiceFromDID,
+  DepositToSaberPool,
+  WithdrawOneFromSaberPool,
+  WithdrawFromSaberPool,
+  SwapWithSaberPool,
 }
 
 export type createParams = [

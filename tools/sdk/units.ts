@@ -191,3 +191,12 @@ export function getMintSupplyFractionAsDecimalPercentage(
     .dividedBy(new BigNumber(mint.supply.toString()))
     .toNumber()
 }
+
+export function getDecimalAmountFromNaturalBN(
+  naturalAmount: BN,
+  decimals: number
+): number {
+  return Number(
+    new BigNumber(naturalAmount.toString()).shiftedBy(-decimals).toString()
+  )
+}

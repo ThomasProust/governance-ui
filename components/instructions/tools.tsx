@@ -29,6 +29,7 @@ import { LIDO_INSTRUCTIONS } from './programs/lido'
 import { NAME_SERVICE_INSTRUCTIONS } from './programs/nameService'
 import { TOKEN_AUCTION_INSTRUCTIONS } from './programs/tokenAuction'
 import { VALIDATORDAO_INSTRUCTIONS } from './programs/validatordao'
+import { SABER_POOLS_PROGRAM_INSTRUCTIONS } from './programs/saber'
 
 export const V3_DEFAULT_GOVERNANCE_PROGRAM_ID =
   '7e75Nwsz8i5i4NiDa43CNzKJ4AeQGyRimha46VKTM1Ls'
@@ -303,6 +304,7 @@ export const INSTRUCTION_DESCRIPTORS = {
   ...SAGA_PHONE,
   ...TOKEN_AUCTION_INSTRUCTIONS,
   ...VALIDATORDAO_INSTRUCTIONS,
+  ...SABER_POOLS_PROGRAM_INSTRUCTIONS,
 }
 
 export async function getInstructionDescriptor(

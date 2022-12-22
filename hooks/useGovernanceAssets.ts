@@ -238,6 +238,10 @@ export default function useGovernanceAssets() {
     [PackageEnum.VsrPlugin]: {
       name: 'Vsr Plugin',
     },
+    [PackageEnum.Saber]: {
+      name: 'Saber',
+      image: '/img/saber.png',
+    },
   }
 
   // Alphabetical order, Packages then instructions
@@ -832,6 +836,26 @@ export default function useGovernanceAssets() {
       name: 'Vote Escrowed Tokens: Configure Voting Mint',
       isVisible: canUseAuthorityInstruction,
       packageId: PackageEnum.VsrPlugin,
+    },
+    [Instructions.DepositToSaberPool]: {
+      name: 'Saber: Deposit to Pool',
+      isVisible: canUseAnyInstruction,
+      packageId: PackageEnum.Saber,
+    },
+    [Instructions.WithdrawOneFromSaberPool]: {
+      name: 'Saber: Withraw One from Pool',
+      isVisible: canUseAnyInstruction,
+      packageId: PackageEnum.Saber,
+    },
+    [Instructions.WithdrawFromSaberPool]: {
+      name: 'Saber: Withraw from Pool',
+      isVisible: canUseAnyInstruction,
+      packageId: PackageEnum.Saber,
+    },
+    [Instructions.SwapWithSaberPool]: {
+      name: 'Saber: Swap with Pool',
+      isVisible: canUseAnyInstruction,
+      packageId: PackageEnum.Saber,
     },
   }
 
