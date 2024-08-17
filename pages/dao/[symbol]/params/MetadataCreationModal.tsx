@@ -8,7 +8,6 @@ import {
   getUpdateTokenMetadataInstruction,
   validateInstruction,
 } from '@utils/instructionTools'
-import useWalletStore from 'stores/useWalletStore'
 import { UiInstruction } from '@utils/uiTypes/proposalCreationTypes'
 import useCreateProposal from '@hooks/useCreateProposal'
 import { InstructionDataWithHoldUpTime } from 'actions/createProposal'
@@ -16,7 +15,7 @@ import useQueryContext from '@hooks/useQueryContext'
 import { useRouter } from 'next/router'
 import { notify } from '@utils/notifications'
 import useRealm from '@hooks/useRealm'
-import { useEffect, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import Button from '@components/Button'
 import * as yup from 'yup'
 import { useDropzone } from 'react-dropzone'
@@ -28,6 +27,10 @@ import { WebBundlr } from '@bundlr-network/client'
 import { LAMPORTS_PER_SOL } from '@solana/web3.js'
 import { PublicKey } from '@solana/web3.js'
 import { Metaplex } from '@metaplex-foundation/js'
+import useWalletOnePointOh from '@hooks/useWalletOnePointOh'
+import { useRealmQuery } from '@hooks/queries/realm'
+import useLegacyConnectionContext from '@hooks/useLegacyConnectionContext'
+import {useVoteByCouncilToggle} from "@hooks/useVoteByCouncilToggle";
 
 interface GovernanceConfigForm {
   mintAccount: AssetAccount | undefined
@@ -48,21 +51,22 @@ const MetadataCreationModal = ({
   initialMintAccount?: AssetAccount | undefined
 }) => {
   const router = useRouter()
-  const { realm, canChooseWhoVote, symbol, realmInfo } = useRealm()
+  const realm = useRealmQuery().data?.result
+  const {symbol, realmInfo } = useRealm()
   const programId: PublicKey | undefined = realmInfo?.programId
 
   const { assetAccounts } = useGovernanceAssets()
-  const connection = useWalletStore((s) => s.connection)
+  const connection = useLegacyConnectionContext()
   const mintGovernancesWithMintInfo = assetAccounts.filter((x) => {
     return x.type === AccountType.MINT
   })
   const shouldBeGoverned = false
   const { fmtUrlWithCluster } = useQueryContext()
-  const wallet = useWalletStore((s) => s.current)
+  const wallet = useWalletOnePointOh()
   const { handleCreateProposal } = useCreateProposal()
   const [formErrors, setFormErrors] = useState({})
   const [creatingProposal, setCreatingProposal] = useState(false)
-  const [voteByCouncil, setVoteByCouncil] = useState(false)
+  const { voteByCouncil, shouldShowVoteByCouncilToggle, setVoteByCouncil } = useVoteByCouncilToggle();
   const [selectedImage, setSelectedImage] = useState<null | string>(null)
   const [imageFile, setImageFile] = useState<null | Buffer>(null)
   const [mintAuthority, setMintAuthority] = useState<
@@ -178,11 +182,9 @@ const MetadataCreationModal = ({
         : 'https://node1.bundlr.network',
       'solana',
       wallet,
-      connection.cluster == 'devnet'
-        ? {
-            providerUrl: connection.current.rpcEndpoint,
-          }
-        : undefined
+      {
+        providerUrl: connection.current.rpcEndpoint,
+      }
     )
     try {
       await bundlr.utils.getBundlerAddress('solana')
@@ -399,13 +401,13 @@ const MetadataCreationModal = ({
           }
         ></Textarea>
 
-        {canChooseWhoVote && (
-          <VoteBySwitch
-            checked={voteByCouncil}
-            onChange={() => {
-              setVoteByCouncil(!voteByCouncil)
-            }}
-          ></VoteBySwitch>
+        {shouldShowVoteByCouncilToggle && (
+            <VoteBySwitch
+                checked={voteByCouncil}
+                onChange={() => {
+                  setVoteByCouncil(!voteByCouncil)
+                }}
+            ></VoteBySwitch>
         )}
       </div>
       <div className="flex justify-end pt-6 mt-6 space-x-4 border-t border-fgd-4">

@@ -1,5 +1,5 @@
 import useRealm from 'hooks/useRealm'
-import React, { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import ProposalFilter, {
   InitialFilters,
   Filters,
@@ -9,10 +9,10 @@ import {
   Proposal,
   ProposalState,
   Vote,
+  VoteType,
   withCastVote,
   YesNoVote,
 } from '@solana/spl-governance'
-import useWalletStore from 'stores/useWalletStore'
 import NewProposalBtn from './proposal/components/NewProposalBtn'
 import { PublicKey, Transaction, TransactionInstruction } from '@solana/web3.js'
 import TokenBalanceCardWrapper from '@components/TokenBalance/TokenBalanceCardWrapper'
@@ -26,12 +26,36 @@ import Switch from '@components/Switch'
 import ProposalSelectCard from '@components/ProposalSelectCard'
 import Checkbox from '@components/inputs/Checkbox'
 import Button from '@components/Button'
-import useVotePluginsClientStore from 'stores/useVotePluginsClientStore'
-import { NftVoterClient } from '@solana/governance-program-library'
 import { notify } from '@utils/notifications'
 import { sendSignedTransaction } from '@utils/send'
 import { compareProposals, filterProposals } from '@utils/proposals'
-import { REALM_ID as PYTH_REALM_ID } from 'pyth-staking-api'
+import ProposalSorting, {
+  InitialSorting,
+  PROPOSAL_SORTING_LOCAL_STORAGE_KEY,
+  Sorting,
+} from '@components/ProposalSorting'
+import useWalletOnePointOh from '@hooks/useWalletOnePointOh'
+import {
+  useUserCommunityTokenOwnerRecord,
+  useUserCouncilTokenOwnerRecord,
+} from '@hooks/queries/tokenOwnerRecord'
+import { useRealmQuery } from '@hooks/queries/realm'
+import {
+  useRealmCommunityMintInfoQuery,
+  useRealmCouncilMintInfoQuery,
+} from '@hooks/queries/mintInfo'
+import { useRealmGovernancesQuery } from '@hooks/queries/governance'
+import { useConnection } from '@solana/wallet-adapter-react'
+import {
+  proposalQueryKeys,
+  useRealmProposalsQuery,
+} from '@hooks/queries/proposal'
+import queryClient from '@hooks/queries/queryClient'
+import { getFeeEstimate } from '@tools/feeEstimate'
+import { createComputeBudgetIx } from '@blockworks-foundation/mango-v4'
+import { useNftClient } from '../../../VoterWeightPlugins/useNftClient'
+import { useVotingClients } from '@hooks/useVotingClients'
+import { useRealmVoterWeightPlugins } from '@hooks/useRealmVoterWeightPlugins'
 
 const AccountsCompactWrapper = dynamic(
   () => import('@components/TreasuryAccount/AccountsCompactWrapper')
@@ -50,54 +74,107 @@ const DepositLabel = dynamic(
 
 const REALM = () => {
   const pagination = useRef<{ setPage: (val) => void }>(null)
-  const {
-    realm,
-    realmInfo,
-    proposals,
-    governances,
-    tokenRecords,
-    ownVoterWeight,
-    ownTokenRecord,
-    councilTokenOwnerRecords,
-    ownCouncilTokenRecord,
-  } = useRealm()
+  const ownTokenRecord = useUserCommunityTokenOwnerRecord().data?.result
+  const ownCouncilTokenRecord = useUserCouncilTokenOwnerRecord().data?.result
+  const realmQuery = useRealmQuery()
+  const mint = useRealmCommunityMintInfoQuery().data?.result
+  const councilMint = useRealmCouncilMintInfoQuery().data?.result
+  const { realmInfo } = useRealm()
   const proposalsPerPage = 20
   const [filters, setFilters] = useState<Filters>(InitialFilters)
-  const [displayedProposals, setDisplayedProposals] = useState(
-    Object.entries(proposals)
-  )
+  const [sorting, setSorting] = useState<Sorting>(InitialSorting)
+
   const [paginatedProposals, setPaginatedProposals] = useState<
     [string, ProgramAccount<Proposal>][]
   >([])
   const [isMultiVoting, setIsMultiVoting] = useState(false)
   const [proposalSearch, setProposalSearch] = useState('')
-  const [filteredProposals, setFilteredProposals] = useState(displayedProposals)
   const [activeTab, setActiveTab] = useState('Proposals')
   const [multiVoteMode, setMultiVoteMode] = useState(false)
   const [selectedProposals, setSelectedProposals] = useState<
     SelectedProposal[]
   >([])
-  const ownVoteRecordsByProposal = useWalletStore(
-    (s) => s.ownVoteRecordsByProposal
-  )
-  const refetchProposals = useWalletStore((s) => s.actions.refetchProposals)
-  const client = useVotePluginsClientStore(
-    (s) => s.state.currentRealmVotingClient
-  )
-  const wallet = useWalletStore((s) => s.current)
-  const connection = useWalletStore((s) => s.connection.current)
 
-  const allProposals = Object.entries(proposals).sort((a, b) =>
-    compareProposals(b[1].account, a[1].account, governances)
-  )
-  useEffect(() => {
-    setPaginatedProposals(paginateProposals(0))
-    pagination?.current?.setPage(0)
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- TODO please fix, it can cause difficult bugs. You might wanna check out https://bobbyhadz.com/blog/react-hooks-exhaustive-deps for info. -@asktree
-  }, [JSON.stringify(filteredProposals)])
+  const votingClients = useVotingClients()
+  const { nftClient } = useNftClient()
+  const wallet = useWalletOnePointOh()
+  const { connection } = useConnection()
 
-  useEffect(() => {
-    let proposals = filterProposals(allProposals, filters)
+  const governancesArray = useRealmGovernancesQuery().data
+  const governancesByGovernance = useMemo(
+    () =>
+      governancesArray &&
+      Object.fromEntries(governancesArray.map((x) => [x.pubkey.toString(), x])),
+    [governancesArray]
+  )
+  const { data: proposalsArray } = useRealmProposalsQuery()
+  const proposalsByProposal = useMemo(
+    () =>
+      proposalsArray === undefined
+        ? undefined
+        : Object.fromEntries(
+            proposalsArray.map((x) => [x.pubkey.toString(), x])
+          ),
+    [proposalsArray]
+  )
+
+  const allProposals = useMemo(
+    () =>
+      governancesByGovernance !== undefined && proposalsByProposal !== undefined
+        ? Object.entries(proposalsByProposal ?? {}).sort((a, b) =>
+            compareProposals(
+              b[1].account,
+              a[1].account,
+              governancesByGovernance
+            )
+          )
+        : [],
+    [governancesByGovernance, proposalsByProposal]
+  )
+
+  const onProposalPageChange = (page) => {
+    setPaginatedProposals(paginateProposals(page))
+  }
+
+  const toggleMultiVoteMode = () => {
+    setMultiVoteMode(!multiVoteMode)
+  }
+  const handleSetSorting = (sorting: Sorting) => {
+    localStorage.setItem(
+      PROPOSAL_SORTING_LOCAL_STORAGE_KEY,
+      JSON.stringify(sorting)
+    )
+    setSorting(sorting)
+  }
+
+  const votingProposals = useMemo(
+    () =>
+      governancesByGovernance &&
+      allProposals?.filter(([_k, v]) => {
+        const governance =
+          governancesByGovernance[v.account.governance.toBase58()]?.account
+        return (
+          v.account.state === ProposalState.Voting &&
+          v.account.voteType === VoteType.SINGLE_CHOICE &&
+          // !getCurrentVoteRecKeyVal()[k] &&
+          !v.account.hasVoteTimeEnded(governance)
+        )
+      }),
+    [allProposals, governancesByGovernance]
+  )
+
+  const filteredProposals = useMemo(() => {
+    if (votingProposals && multiVoteMode) return votingProposals
+
+    let proposals = filterProposals(
+      allProposals,
+      filters,
+      sorting,
+      realmQuery.data?.result,
+      governancesByGovernance ?? {},
+      councilMint,
+      mint
+    )
 
     if (proposalSearch) {
       proposals = proposals.filter(([, v]) =>
@@ -106,66 +183,59 @@ const REALM = () => {
           .includes(proposalSearch.toLocaleLowerCase())
       )
     }
-    setFilteredProposals(proposals)
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- TODO please fix, it can cause difficult bugs. You might wanna check out https://bobbyhadz.com/blog/react-hooks-exhaustive-deps for info. -@asktree
-  }, [filters, proposalSearch])
+    return proposals
+  }, [
+    allProposals,
+    councilMint,
+    filters,
+    governancesByGovernance,
+    mint,
+    multiVoteMode,
+    proposalSearch,
+    realmQuery.data?.result,
+    sorting,
+    votingProposals,
+  ])
 
-  useEffect(() => {
-    const proposals = filterProposals(allProposals, filters)
-    setDisplayedProposals(proposals)
-    setFilteredProposals(proposals)
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- TODO please fix, it can cause difficult bugs. You might wanna check out https://bobbyhadz.com/blog/react-hooks-exhaustive-deps for info. -@asktree
-  }, [JSON.stringify(proposals)])
-
-  const onProposalPageChange = (page) => {
-    setPaginatedProposals(paginateProposals(page))
-  }
-  const paginateProposals = (page) => {
-    return filteredProposals.slice(
-      page * proposalsPerPage,
-      (page + 1) * proposalsPerPage
-    )
-  }
-
-  const toggleMultiVoteMode = () => {
-    setMultiVoteMode(!multiVoteMode)
-  }
-
-  const votingProposals = useMemo(
-    () =>
-      allProposals.filter(([k, v]) => {
-        const governance = governances[v.account.governance.toBase58()]?.account
-        return (
-          v.account.state === ProposalState.Voting &&
-          !ownVoteRecordsByProposal[k] &&
-          !v.account.hasVoteTimeEnded(governance)
-        )
-      }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- TODO please fix, it can cause difficult bugs. You might wanna check out https://bobbyhadz.com/blog/react-hooks-exhaustive-deps for info. -@asktree
-    [allProposals]
+  const paginateProposals = useCallback(
+    (page) => {
+      return filteredProposals.slice(
+        page * proposalsPerPage,
+        (page + 1) * proposalsPerPage
+      )
+    },
+    [filteredProposals]
   )
 
+  // TODO stop using side effects
+  /** side effect:  */
   useEffect(() => {
     setSelectedProposals([])
-    if (multiVoteMode) {
-      setFilteredProposals(votingProposals)
-    } else {
-      const proposals = filterProposals(allProposals, filters)
-      setFilteredProposals(proposals)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- TODO please fix, it can cause difficult bugs. You might wanna check out https://bobbyhadz.com/blog/react-hooks-exhaustive-deps for info. -@asktree
   }, [multiVoteMode])
 
+  // TODO stop using side effects
+  /** side effect: update sorting based on localstorage */
+  useEffect(() => {
+    const initialSort = localStorage.getItem(PROPOSAL_SORTING_LOCAL_STORAGE_KEY)
+    if (initialSort) {
+      const initialSortObj = JSON.parse(initialSort)
+      setSorting(initialSortObj)
+    }
+  }, [])
+
+  const {
+    ownVoterWeight: communityOwnVoterWeight,
+  } = useRealmVoterWeightPlugins('community')
+  const { ownVoterWeight: councilOwnVoterWeight } = useRealmVoterWeightPlugins(
+    'council'
+  )
+
   const allVotingProposalsSelected =
-    selectedProposals.length === votingProposals.length
+    selectedProposals.length === votingProposals?.length
   const hasCommunityVoteWeight =
-    ownTokenRecord &&
-    ownVoterWeight.hasMinAmountToVote(ownTokenRecord.account.governingTokenMint)
+    ownTokenRecord && communityOwnVoterWeight?.value?.gtn(0)
   const hasCouncilVoteWeight =
-    ownCouncilTokenRecord &&
-    ownVoterWeight.hasMinAmountToVote(
-      ownCouncilTokenRecord.account.governingTokenMint
-    )
+    ownCouncilTokenRecord && councilOwnVoterWeight?.value?.gtn(0)
 
   const cantMultiVote =
     selectedProposals.length === 0 ||
@@ -177,15 +247,16 @@ const REALM = () => {
       setSelectedProposals([])
     } else {
       setSelectedProposals(
-        votingProposals.map(([k, v]) => ({
+        votingProposals?.map(([k, v]) => ({
           proposal: v.account,
           proposalPk: new PublicKey(k),
-        }))
+        })) ?? []
       )
     }
   }
 
   const voteOnSelected = async (vote: YesNoVote) => {
+    const realm = realmQuery.data?.result
     if (!wallet || !realmInfo!.programId || !realm) return
 
     const governanceAuthority = wallet.publicKey!
@@ -193,32 +264,41 @@ const REALM = () => {
 
     try {
       setIsMultiVoting(true)
-      const {
-        blockhash: recentBlockhash,
-      } = await connection.getLatestBlockhash()
+      const [{ blockhash: recentBlockhash }, fee] = await Promise.all([
+        connection.getLatestBlockhash(),
+        getFeeEstimate(connection),
+      ])
 
       const transactions: Transaction[] = []
       for (let i = 0; i < selectedProposals.length; i++) {
         const selectedProposal = selectedProposals[i]
-        const ownTokenRecord =
+        const relevantTokenRecord =
           selectedProposal.proposal.governingTokenMint.toBase58() ===
           realm.account.communityMint.toBase58()
-            ? tokenRecords[wallet.publicKey!.toBase58()]
-            : councilTokenOwnerRecords[wallet.publicKey!.toBase58()]
+            ? ownTokenRecord
+            : ownCouncilTokenRecord
+        const role =
+          selectedProposal.proposal.governingTokenMint.toBase58() ===
+          realm.account.communityMint.toBase58()
+            ? 'community'
+            : 'council'
+
+        if (relevantTokenRecord === undefined)
+          throw new Error('token owner record not found or not yet loaded')
 
         const instructions: TransactionInstruction[] = []
 
         //will run only if plugin is connected with realm
-        const plugin = await client?.withCastPluginVote(
+        const plugin = await votingClients(role)?.withCastPluginVote(
           instructions,
           {
             account: selectedProposal.proposal,
             pubkey: selectedProposal.proposalPk,
             owner: realm.pubkey,
           },
-          ownTokenRecord
+          relevantTokenRecord.pubkey
         )
-        if (client.client instanceof NftVoterClient === false) {
+        if (!nftClient) {
           await withCastVote(
             instructions,
             realmInfo!.programId,
@@ -227,7 +307,7 @@ const REALM = () => {
             selectedProposal.proposal.governance,
             selectedProposal.proposalPk,
             selectedProposal.proposal.tokenOwnerRecord,
-            ownTokenRecord.pubkey,
+            relevantTokenRecord.pubkey,
             governanceAuthority,
             selectedProposal.proposal.governingTokenMint,
             Vote.fromYesNoVote(vote),
@@ -238,8 +318,9 @@ const REALM = () => {
         }
 
         const transaction = new Transaction()
-        transaction.add(...instructions)
+        transaction.add(...[createComputeBudgetIx(fee), ...instructions])
         transaction.recentBlockhash = recentBlockhash
+        transaction.feePayer = wallet.publicKey!
         transaction.setSigners(
           // fee payed by the wallet owner
           wallet.publicKey!
@@ -252,7 +333,9 @@ const REALM = () => {
           sendSignedTransaction({ signedTransaction: transaction, connection })
         )
       )
-      await refetchProposals()
+      queryClient.invalidateQueries({
+        queryKey: proposalQueryKeys.all(connection.rpcEndpoint),
+      })
       toggleMultiVoteMode()
       notify({
         message: 'Successfully voted on all proposals',
@@ -264,8 +347,11 @@ const REALM = () => {
     setIsMultiVoting(false)
   }
 
-  //Todo: move to own components with refactor to dao folder structure
-  const isPyth = realmInfo?.realmId.toBase58() === PYTH_REALM_ID.toBase58()
+  /** side effect: whenever filter changes, paginate to zero  */
+  useEffect(() => {
+    setPaginatedProposals(paginateProposals(0))
+    pagination?.current?.setPage(0)
+  }, [paginateProposals, filteredProposals])
 
   return (
     <>
@@ -318,12 +404,23 @@ const REALM = () => {
         </div>
       </div>
       <div className="grid grid-cols-12 gap-4">
-        {realm ? (
+        {realmQuery.isLoading ? (
+          <>
+            <div className={`col-span-12 md:col-span-7 lg:col-span-8`}>
+              <div className="animate-pulse bg-bkg-3 h-full rounded-lg w-full" />
+            </div>
+            <div className="col-span-12 md:col-span-5 lg:col-span-4 space-y-4">
+              <div className="animate-pulse bg-bkg-3 h-64 rounded-lg w-full" />
+              <div className="animate-pulse bg-bkg-3 h-64 rounded-lg w-full" />
+              <div className="animate-pulse bg-bkg-3 h-64 rounded-lg w-full" />
+            </div>
+          </>
+        ) : realmQuery.data?.result !== undefined ? (
           <>
             <div
               className={`bg-bkg-2 col-span-12 md:col-span-7 md:order-first lg:col-span-8 order-last rounded-lg`}
             >
-              {realm && <RealmHeader />}
+              <RealmHeader />
               <div className="p-4 md:p-6 ">
                 <div>
                   {realmInfo?.bannerImage ? (
@@ -370,15 +467,20 @@ const REALM = () => {
                           filters={filters}
                           onChange={setFilters}
                         />
+                        <ProposalSorting
+                          sorting={sorting}
+                          disabled={multiVoteMode}
+                          onChange={handleSetSorting}
+                        ></ProposalSorting>
                       </div>
                       <div
                         className={`flex lg:flex-row items-center justify-between lg:space-x-3 w-full flex-col-reverse`}
                       >
-                        <h4 className="font-normal mb-0 text-fgd-2 whitespace-nowrap">{`${
-                          filteredProposals.length
-                        } Proposal${
-                          filteredProposals.length === 1 ? '' : 's'
-                        }`}</h4>
+                        <h4 className="font-normal mb-0 text-fgd-2 whitespace-nowrap">
+                          {`${filteredProposals.length} Proposal${
+                            filteredProposals.length === 1 ? '' : 's'
+                          }`}
+                        </h4>
                         <div
                           className={`flex items-center lg:justify-end lg:pb-0 lg:space-x-3 w-full justify-between pb-3`}
                         >
@@ -436,22 +538,13 @@ const REALM = () => {
             </div>
             <div className="col-span-12 md:col-span-5 lg:col-span-4 space-y-4">
               <TokenBalanceCardWrapper />
-              {!isPyth && <NFTSCompactWrapper />}
+              {!process?.env?.DISABLE_NFTS && <NFTSCompactWrapper />}
               <AccountsCompactWrapper />
               <AssetsCompactWrapper />
             </div>
           </>
         ) : (
-          <>
-            <div className={`col-span-12 md:col-span-7 lg:col-span-8`}>
-              <div className="animate-pulse bg-bkg-3 h-full rounded-lg w-full" />
-            </div>
-            <div className="col-span-12 md:col-span-5 lg:col-span-4 space-y-4">
-              <div className="animate-pulse bg-bkg-3 h-64 rounded-lg w-full" />
-              <div className="animate-pulse bg-bkg-3 h-64 rounded-lg w-full" />
-              <div className="animate-pulse bg-bkg-3 h-64 rounded-lg w-full" />
-            </div>
-          </>
+          <>Realm not found</>
         )}
       </div>
     </>

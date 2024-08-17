@@ -5,21 +5,22 @@ const relativeTime = require('dayjs/plugin/relativeTime')
 
 import { abbreviateAddress } from '@hub/lib/abbreviateAddress'
 
-const votePrecision = 10000
-export const calculatePct = (c: BN, total?: BN) => {
+export const calculatePct = (c = new BN(0), total?: BN) => {
   if (total?.isZero()) {
     return 0
   }
 
-  return (
-    c
-      .mul(new BN(votePrecision))
-      .div(total ?? new BN(1))
-      .toNumber() *
-    (100 / votePrecision)
-  )
+  return new BN(100)
+    .mul(c)
+    .div(total ?? new BN(1))
+    .toNumber()
 }
 
+/**
+ * @deprecated
+ * you shouldn't cast a BN to a number
+ * use fmtBnMintDecimals
+ */
 export const fmtTokenAmount = (c: BN, decimals?: number) =>
   c?.div(new BN(10).pow(new BN(decimals ?? 0))).toNumber() || 0
 
@@ -39,7 +40,7 @@ export function precision(a) {
   return p
 }
 
-export const fmtMsToTime = (milliseconds: number) => {
+const fmtMsToTime = (milliseconds: number) => {
   let seconds = Math.floor(milliseconds / 1000)
   let minutes = Math.floor(seconds / 60)
   let hours = Math.floor(minutes / 60)

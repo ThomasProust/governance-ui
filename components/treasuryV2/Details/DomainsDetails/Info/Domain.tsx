@@ -10,9 +10,12 @@ import Tooltip from '@components/Tooltip'
 
 import useRealm from '@hooks/useRealm'
 import useQueryContext from '@hooks/useQueryContext'
-import useWalletStore from 'stores/useWalletStore'
 
 import { Domain as DomainModel } from '@models/treasury/Domain'
+import useWalletOnePointOh from '@hooks/useWalletOnePointOh'
+import { useRealmQuery } from '@hooks/queries/realm'
+import { useRealmGovernancesQuery } from '@hooks/queries/governance'
+import { useLegacyVoterWeight } from '@hooks/queries/governancePower'
 
 interface Props {
   domain: DomainModel
@@ -20,32 +23,32 @@ interface Props {
 
 const Domain: React.FC<Props> = (props) => {
   const { fmtUrlWithCluster } = useQueryContext()
-  const connected = useWalletStore((s) => s.connected)
+  const wallet = useWalletOnePointOh()
+  const connected = !!wallet?.connected
+  const realm = useRealmQuery().data?.result
+  const governanceItems = useRealmGovernancesQuery().data
+  const { result: ownVoterWeight } = useLegacyVoterWeight()
+
   const {
     symbol,
-    realm,
-    governances,
-    ownVoterWeight,
     toManyCommunityOutstandingProposalsForUser,
     toManyCouncilOutstandingProposalsForUse,
   } = useRealm()
 
-  const governanceItems = Object.values(governances)
-
   const canCreateProposal =
     realm &&
-    governanceItems.some((g) =>
-      ownVoterWeight.canCreateProposal(g.account.config)
+    governanceItems?.some((g) =>
+      ownVoterWeight?.canCreateProposal(g.account.config)
     ) &&
     !toManyCommunityOutstandingProposalsForUser &&
     !toManyCouncilOutstandingProposalsForUse
 
   const tooltipContent = !connected
     ? 'Connect your wallet to create new proposal'
-    : governanceItems.length === 0
+    : governanceItems?.length === 0
     ? 'There is no governance configuration to create a new proposal'
-    : !governanceItems.some((g) =>
-        ownVoterWeight.canCreateProposal(g.account.config)
+    : !governanceItems?.some((g) =>
+        ownVoterWeight?.canCreateProposal(g.account.config)
       )
     ? "You don't have enough governance power to create a new proposal"
     : toManyCommunityOutstandingProposalsForUser

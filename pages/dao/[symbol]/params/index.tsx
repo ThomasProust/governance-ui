@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import GovernedAccountsTabs from '@components/GovernedAccountsTabs'
 import PreviousRouteBtn from '@components/PreviousRouteBtn'
-import useRealm from '@hooks/useRealm'
 import { fmtBNAmount, fmtMintAmount } from '@tools/sdk/units'
 import { DISABLED_VOTER_WEIGHT } from '@tools/constants'
 import { capitalize } from '@utils/helpers'
@@ -10,12 +9,10 @@ import Tabs from '@components/Tabs'
 import Select from '@components/inputs/Select'
 import Button from '@components/Button'
 import useGovernanceAssets from '@hooks/useGovernanceAssets'
+import { useRouter } from 'next/router'
 
-import RealmConfigModal from './RealmConfigModal'
-import GovernanceConfigModal from './GovernanceConfigModal'
 import { tryParsePublicKey } from '@tools/core/pubkey'
 import { getAccountName } from '@components/instructions/tools'
-import useWalletStore from 'stores/useWalletStore'
 import SetRealmAuthorityModal from './SetRealmAuthorityModal'
 import MetadataCreationModal from './MetadataCreationModal'
 
@@ -26,21 +23,36 @@ import { ExclamationIcon } from '@heroicons/react/outline'
 import Tooltip from '@components/Tooltip'
 import { AccountType } from '@utils/uiTypes/assets'
 import { MintMaxVoteWeightSourceType } from '@solana/spl-governance'
+import useQueryContext from '@hooks/useQueryContext'
+import useWalletOnePointOh from '@hooks/useWalletOnePointOh'
+import { useRealmQuery } from '@hooks/queries/realm'
+import { useRealmConfigQuery } from '@hooks/queries/realmConfig'
+import { useRealmCommunityMintInfoQuery } from '@hooks/queries/mintInfo'
+import { useRealmGovernancesQuery } from '@hooks/queries/governance'
+import useFormatTokenAmount from '@hooks/useFormatTokenAmount'
+import { BN } from 'bn.js'
 
 const Params = () => {
-  const { realm, mint, config } = useRealm()
-  const wallet = useWalletStore((s) => s.current)
+  const mint = useRealmCommunityMintInfoQuery().data?.result
+
+  const router = useRouter()
+  const realm = useRealmQuery().data?.result
+  const config = useRealmConfigQuery().data?.result
+  const { symbol } = router.query
+  const wallet = useWalletOnePointOh()
+  const { fmtUrlWithCluster } = useQueryContext()
   const {
     canUseAuthorityInstruction,
     assetAccounts,
     auxiliaryTokenAccounts,
   } = useGovernanceAssets()
-  const governancesArray = useGovernanceAssetsStore((s) => s.governancesArray)
+  const governancesArray = useRealmGovernancesQuery().data
   const mintGovernancesWithMintInfo = assetAccounts.filter((x) => {
     return x.type === AccountType.MINT
   })
+  const formatTokenAmount = useFormatTokenAmount(realm?.account.communityMint)
 
-  const hasAuthorityGovernances = governancesArray.filter((governance) => {
+  const hasAuthorityGovernances = governancesArray?.filter((governance) => {
     const filteredMintGovernances = mintGovernancesWithMintInfo.filter(
       (mintGovernance) =>
         mintGovernance.governance.pubkey.toString() ===
@@ -56,21 +68,15 @@ const Params = () => {
       governance.pubkey.toString()
     )
   })
-  const showCreateMetadataButton = !!hasAuthorityGovernances.length
+  const showCreateMetadataButton = !!hasAuthorityGovernances?.length
   const loadGovernedAccounts = useGovernanceAssetsStore(
     (s) => s.loadGovernedAccounts
   )
 
-  const realmAuthorityGovernance = governancesArray.find(
+  const realmAuthorityGovernance = governancesArray?.find(
     (x) => x.pubkey.toBase58() === realm?.account.authority?.toBase58()
   )
-  const [isRealmProposalModalOpen, setIsRealmProposalModalOpen] = useState(
-    false
-  )
-  const [
-    isGovernanceProposalModalOpen,
-    setIsGovernanceProposalModalOpen,
-  ] = useState(false)
+
   const [activeGovernance, setActiveGovernance] = useState<any>(null)
   const [activeTab, setActiveTab] = useState('Params')
   const [isRealmAuthorityModalOpen, setRealmAuthorityModalIsOpen] = useState(
@@ -86,23 +92,11 @@ const Params = () => {
   const communityMintMaxVoteWeightSource =
     realmAccount?.config.communityMintMaxVoteWeightSource
   const realmConfig = realmAccount?.config
-  const openRealmProposalModal = () => {
-    setIsRealmProposalModalOpen(true)
-  }
-  const closeRealmProposalModal = () => {
-    setIsRealmProposalModalOpen(false)
-  }
   const openMetadataCreationModal = () => {
     setIsMetadataCreationModalOpen(true)
   }
   const closeMetadataCreationModal = () => {
     setIsMetadataCreationModalOpen(false)
-  }
-  const openGovernanceProposalModal = () => {
-    setIsGovernanceProposalModalOpen(true)
-  }
-  const closeGovernanceProposalModal = () => {
-    setIsGovernanceProposalModalOpen(false)
   }
   const openSetRealmAuthorityModal = () => {
     setRealmAuthorityModalIsOpen(true)
@@ -118,29 +112,17 @@ const Params = () => {
     DISABLED_VOTER_WEIGHT.eq(realmConfig.minCommunityTokensToCreateGovernance)
       ? 'Disabled'
       : realmConfig?.minCommunityTokensToCreateGovernance &&
+        mint &&
         fmtMintAmount(mint, realmConfig.minCommunityTokensToCreateGovernance)
 
   useEffect(() => {
-    if (governancesArray.length > 0) {
+    if (governancesArray !== undefined && governancesArray.length > 0) {
       setActiveGovernance(governancesArray[0])
     }
   }, [governancesArray])
 
   return (
     <div className="grid grid-cols-12 gap-4">
-      {isRealmProposalModalOpen && (
-        <RealmConfigModal
-          isProposalModalOpen={isRealmProposalModalOpen}
-          closeProposalModal={closeRealmProposalModal}
-        ></RealmConfigModal>
-      )}
-      {isGovernanceProposalModalOpen && activeGovernance && (
-        <GovernanceConfigModal
-          governance={activeGovernance}
-          isProposalModalOpen={isGovernanceProposalModalOpen}
-          closeProposalModal={closeGovernanceProposalModal}
-        ></GovernanceConfigModal>
-      )}
       {isRealmAuthorityModalOpen && (
         <SetRealmAuthorityModal
           isOpen={isRealmAuthorityModalOpen}
@@ -236,12 +218,22 @@ const Params = () => {
                 {communityMintMaxVoteWeightSource && (
                   <AddressField
                     padding
-                    label="Community mint max vote weight source"
+                    label="Community max vote weight source"
                     val={`${
                       communityMintMaxVoteWeightSource.type ===
                       MintMaxVoteWeightSourceType.SupplyFraction
-                        ? `${communityMintMaxVoteWeightSource.fmtSupplyFractionPercentage()}%`
-                        : fmtBNAmount(communityMintMaxVoteWeightSource.value)
+                        ? `${communityMintMaxVoteWeightSource.fmtSupplyFractionPercentage()}% of supply`
+                        : formatTokenAmount
+                        ? fmtBNAmount(
+                            new BN(
+                              formatTokenAmount(
+                                communityMintMaxVoteWeightSource.value
+                              )
+                            )
+                          )
+                        : `${fmtBNAmount(
+                            communityMintMaxVoteWeightSource.value
+                          )} (raw)`
                     }`}
                   />
                 )}
@@ -276,7 +268,11 @@ const Params = () => {
                         ? 'None of the governances is realm authority'
                         : ''
                     }
-                    onClick={openRealmProposalModal}
+                    onClick={() => {
+                      router.push(
+                        fmtUrlWithCluster(`/dao/${symbol}/editConfig`)
+                      )
+                    }}
                     className="ml-auto"
                   >
                     Change config
@@ -291,7 +287,7 @@ const Params = () => {
             </>
           )}
         </div>
-        {!loadGovernedAccounts ? (
+        {!loadGovernedAccounts && governancesArray !== undefined ? (
           <>
             <div className="grid grid-cols-12 gap-4 p-6 mb-6 border rounded-md border-fgd-4 lg:gap-6">
               <div className="col-span-12 lg:hidden">
@@ -345,10 +341,7 @@ const Params = () => {
                     />
                   ) : null}
                   {activeTab === 'Params' && (
-                    <ParamsView
-                      activeGovernance={activeGovernance}
-                      openGovernanceProposalModal={openGovernanceProposalModal}
-                    />
+                    <ParamsView activeGovernance={activeGovernance} />
                   )}
                   {activeTab === 'Accounts' && (
                     <AccountsView

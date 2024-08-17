@@ -2,17 +2,23 @@ import { BigNumber } from 'bignumber.js'
 import { useEffect, useMemo, useState } from 'react'
 
 import { Domain } from '@models/treasury/Domain'
-import { NFT } from '@models/treasury/NFT'
 import { Status, Result } from '@utils/uiTypes/Result'
 import { AuxiliaryWallet, Wallet } from '@models/treasury/Wallet'
 import useGovernanceAssetsStore from 'stores/useGovernanceAssetsStore'
 import useRealm from '@hooks/useRealm'
-import useWalletStore from 'stores/useWalletStore'
 
 import { assembleWallets } from './assembleWallets'
 import { calculateTokenCountAndValue } from './calculateTokenCountAndValue'
-import { getNfts } from './getNfts'
 import { getDomains } from './getDomains'
+import { useRealmQuery } from '@hooks/queries/realm'
+import { useRealmConfigQuery } from '@hooks/queries/realmConfig'
+import {
+  useRealmCommunityMintInfoQuery,
+  useRealmCouncilMintInfoQuery,
+} from '@hooks/queries/mintInfo'
+import useLegacyConnectionContext from '@hooks/useLegacyConnectionContext'
+import UseMangoV4 from '@hooks/useMangoV4'
+import useProgramSelector from '@components/Mango/useProgramSelector'
 
 interface Data {
   auxiliaryWallets: AuxiliaryWallet[]
@@ -26,20 +32,31 @@ interface Data {
   wallets: Wallet[]
 }
 
-export default function useTreasuryInfo(): Result<Data> {
-  const { realmInfo, realm, mint, councilMint, config } = useRealm()
-  const connection = useWalletStore((s) => s.connection)
+export default function useTreasuryInfo(
+  getNftsAndDomains = true
+): Result<Data> {
+  const realm = useRealmQuery().data?.result
+  const config = useRealmConfigQuery().data?.result
+  const mint = useRealmCommunityMintInfoQuery().data?.result
+  const councilMint = useRealmCouncilMintInfoQuery().data?.result
+  const { realmInfo } = useRealm()
+  const connection = useLegacyConnectionContext()
   const accounts = useGovernanceAssetsStore((s) => s.assetAccounts)
+
+  const programSelectorHook = useProgramSelector()
+  const { mangoClient, mangoGroup } = UseMangoV4(
+    programSelectorHook.program?.val,
+    programSelectorHook.program?.group
+  )
+
   const loadingGovernedAccounts = useGovernanceAssetsStore(
     (s) => s.loadGovernedAccounts
   )
-  const [nfts, setNfts] = useState<NFT[]>([])
-  const [nftsLoading, setNftsLoading] = useState(true)
-  const [domainsLoading, setDomainsLoading] = useState(true)
+  const [domainsLoading, setDomainsLoading] = useState(getNftsAndDomains)
   const [auxWallets, setAuxWallets] = useState<AuxiliaryWallet[]>([])
   const [wallets, setWallets] = useState<Wallet[]>([])
   const [domains, setDomains] = useState<Domain[]>([])
-  const [buildingWallets, setBuildingWallets] = useState(true)
+  const [buildingWallets, setBuildingWallets] = useState(getNftsAndDomains)
 
   const { counts, values } = useMemo(
     () => calculateTokenCountAndValue(accounts),
@@ -47,8 +64,7 @@ export default function useTreasuryInfo(): Result<Data> {
   )
 
   useEffect(() => {
-    if (!loadingGovernedAccounts && accounts.length) {
-      setNftsLoading(true)
+    if (!loadingGovernedAccounts && accounts.length && getNftsAndDomains) {
       setDomainsLoading(true)
       setBuildingWallets(true)
 
@@ -59,19 +75,6 @@ export default function useTreasuryInfo(): Result<Data> {
         setDomains(domainNames)
         setDomainsLoading(false)
       })
-
-      getNfts(
-        accounts
-          .map((account) =>
-            account.isSol && account.extensions.transferAddress
-              ? account.extensions.transferAddress.toBase58()
-              : account.governance.pubkey?.toBase58()
-          )
-          .filter(Boolean)
-      ).then((nfts) => {
-        setNfts(nfts)
-        setNftsLoading(false)
-      })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- TODO please fix, it can cause difficult bugs. You might wanna check out https://bobbyhadz.com/blog/react-hooks-exhaustive-deps for info. -@asktree
   }, [
@@ -81,15 +84,16 @@ export default function useTreasuryInfo(): Result<Data> {
   ])
 
   const walletsAsync = useMemo(() => {
-    if (nftsLoading || domainsLoading || !realmInfo) {
+    if (domainsLoading || !realmInfo) {
       return Promise.resolve({ wallets: [] })
     } else {
       return assembleWallets(
         connection,
         accounts,
-        nfts,
         domains,
         realmInfo.programId,
+        mangoGroup,
+        mangoClient,
         realm?.account.config.councilMint?.toBase58(),
         realm?.account.communityMint?.toBase58(),
         councilMint,
@@ -102,8 +106,6 @@ export default function useTreasuryInfo(): Result<Data> {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- TODO please fix, it can cause difficult bugs. You might wanna check out https://bobbyhadz.com/blog/react-hooks-exhaustive-deps for info. -@asktree
   }, [
     accounts,
-    nfts,
-    nftsLoading,
     domains,
     domainsLoading,
     realmInfo,
@@ -114,16 +116,16 @@ export default function useTreasuryInfo(): Result<Data> {
     setBuildingWallets(true)
     setWallets([])
 
-    if (!nftsLoading && !domainsLoading && realmInfo) {
+    if (!domainsLoading && realmInfo) {
       walletsAsync.then(({ auxiliaryWallets, wallets }) => {
         setWallets(wallets)
         setAuxWallets(auxiliaryWallets)
         setBuildingWallets(false)
       })
     }
-  }, [walletsAsync, nftsLoading, realmInfo, domainsLoading])
+  }, [walletsAsync, realmInfo, domainsLoading])
 
-  if (!realmInfo || loadingGovernedAccounts || nftsLoading || buildingWallets) {
+  if (!realmInfo || loadingGovernedAccounts || buildingWallets) {
     return {
       _tag: Status.Pending,
     }
@@ -137,7 +139,7 @@ export default function useTreasuryInfo(): Result<Data> {
       icon: realmInfo.ogImage ? <img src={realmInfo.ogImage} /> : undefined,
       governedTokens: { counts, values },
       name: realmInfo.displayName || realmInfo.symbol,
-      totalValue: wallets.reduce((acc, wallet) => {
+      totalValue: [...auxWallets, ...wallets].reduce((acc, wallet) => {
         return acc.plus(wallet.totalValue)
       }, new BigNumber(0)),
     },

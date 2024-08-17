@@ -1,36 +1,42 @@
 import { ThemeProvider } from 'next-themes'
-import { WalletIdentityProvider } from '@cardinal/namespaces-components'
 import dynamic from 'next/dynamic'
-import React, { useEffect } from 'react'
+import React, { useEffect, useMemo } from 'react'
 import Head from 'next/head'
 import Script from 'next/script'
-import { QueryClientProvider } from '@tanstack/react-query'
 import { useRouter } from 'next/router'
-
 import { GatewayProvider } from '@components/Gateway/GatewayProvider'
-import { usePrevious } from '@hooks/usePrevious'
-import { useVotingPlugins, vsrPluginsPks } from '@hooks/useVotingPlugins'
+import { VSR_PLUGIN_PKS } from '@constants/plugins'
 import ErrorBoundary from '@components/ErrorBoundary'
-import handleGovernanceAssetsStore from '@hooks/handleGovernanceAssetsStore'
+import useHandleGovernanceAssetsStore from '@hooks/handleGovernanceAssetsStore'
 import handleRouterHistory from '@hooks/handleRouterHistory'
 import NavBar from '@components/NavBar'
 import PageBodyContainer from '@components/PageBodyContainer'
 import tokenPriceService from '@utils/services/tokenPrice'
 import TransactionLoader from '@components/TransactionLoader'
 import useDepositStore from 'VoteStakeRegistry/stores/useDepositStore'
-import useGovernanceAssets from '@hooks/useGovernanceAssets'
-import useHydrateStore from '@hooks/useHydrateStore'
-import useMarketStore from 'Strategies/store/marketStore'
-import useMembers from '@components/Members/useMembers'
 import useRealm from '@hooks/useRealm'
-import useTreasuryAccountStore from 'stores/useTreasuryAccountStore'
-import useVotePluginsClientStore from 'stores/useVotePluginsClientStore'
-import useWalletStore from 'stores/useWalletStore'
 import NftVotingCountingModal from '@components/NftVotingCountingModal'
 import { getResourcePathPart } from '@tools/core/resources'
-import useInitWallet from '@hooks/useInitWallet'
-import queryClient from '@hooks/queries/queryClient'
 import useSerumGovStore from 'stores/useSerumGovStore'
+import useWalletOnePointOh from '@hooks/useWalletOnePointOh'
+import { useUserCommunityTokenOwnerRecord } from '@hooks/queries/tokenOwnerRecord'
+import { useRealmQuery } from '@hooks/queries/realm'
+import { useRealmConfigQuery } from '@hooks/queries/realmConfig'
+import {
+  ConnectionProvider,
+  WalletProvider,
+} from '@solana/wallet-adapter-react'
+import useLegacyConnectionContext from '@hooks/useLegacyConnectionContext'
+import { DEVNET_RPC, MAINNET_RPC } from 'constants/endpoints'
+import {
+  SquadsEmbeddedWalletAdapter,
+  detectEmbeddedInSquadsIframe,
+} from '@sqds/iframe-adapter'
+import { WALLET_PROVIDERS } from '@utils/wallet-adapters'
+import { tryParsePublicKey } from '@tools/core/pubkey'
+import { useAsync } from 'react-async-hook'
+import { useVsrClient } from '../VoterWeightPlugins/useVsrClient'
+import { useRealmVoterWeightPlugins } from '@hooks/useRealmVoterWeightPlugins'
 
 const Notifications = dynamic(() => import('../components/Notification'), {
   ssr: false,
@@ -60,35 +66,68 @@ interface Props {
   children: React.ReactNode
 }
 
+/** AppContents depends on providers itself, sadly, so this is where providers go.  */
 export function App(props: Props) {
-  useHydrateStore()
-  useInitWallet()
+  const router = useRouter()
+  const { cluster } = router.query
+
+  const endpoint = useMemo(
+    () => (cluster === 'devnet' ? DEVNET_RPC : MAINNET_RPC),
+    [cluster]
+  )
+
+  const supportedWallets = useMemo(
+    () =>
+      detectEmbeddedInSquadsIframe()
+        ? [new SquadsEmbeddedWalletAdapter()]
+        : WALLET_PROVIDERS.map((provider) => provider.adapter),
+    []
+  )
+
+  return (
+    <ConnectionProvider endpoint={endpoint}>
+      <WalletProvider wallets={supportedWallets}>
+        <AppContents {...props} />{' '}
+      </WalletProvider>
+    </ConnectionProvider>
+  )
+}
+
+const allowedFaviconPaths = ['/realms/']
+const allowedDomains = [
+  'https://app.realms.today',
+  'http://localhost',
+  'http://localhost:3000',
+]
+
+export function AppContents(props: Props) {
   handleRouterHistory()
-  useVotingPlugins()
-  handleGovernanceAssetsStore()
-  useMembers()
+  useHandleGovernanceAssetsStore()
   useEffect(() => {
     tokenPriceService.fetchSolanaTokenList()
   }, [])
-  const { loadMarket } = useMarketStore()
-  const { governedTokenAccounts } = useGovernanceAssets()
-  const possibleNftsAccounts = governedTokenAccounts.filter(
-    (x) => x.isSol || x.isNft
-  )
-  const { getNfts } = useTreasuryAccountStore()
+
   const { getOwnedDeposits, resetDepositState } = useDepositStore()
-  const { realm, ownTokenRecord, realmInfo, symbol, config } = useRealm()
-  const wallet = useWalletStore((s) => s.current)
-  const connection = useWalletStore((s) => s.connection)
-  const client = useVotePluginsClientStore((s) => s.state.vsrClient)
-  const prevStringifyPossibleNftsAccounts = usePrevious(
-    JSON.stringify(possibleNftsAccounts)
+
+  const { plugins } = useRealmVoterWeightPlugins('community')
+  const usesVsr = plugins?.voterWeight.find((plugin) =>
+    VSR_PLUGIN_PKS.includes(plugin.programId.toString())
   )
+  const ownTokenRecord = useUserCommunityTokenOwnerRecord().data?.result
+
+  const realm = useRealmQuery().data?.result
+  const config = useRealmConfigQuery().data?.result
+
+  const { realmInfo } = useRealm()
+  const wallet = useWalletOnePointOh()
+  const connection = useLegacyConnectionContext()
+
   const router = useRouter()
   const { cluster } = router.query
   const updateSerumGovAccounts = useSerumGovStore(
     (s) => s.actions.updateSerumGovAccounts
   )
+  const { vsrClient } = useVsrClient()
 
   const realmName = realmInfo?.displayName ?? realm?.account?.name
   const title = realmName ? `${realmName}` : 'Realms'
@@ -96,66 +135,100 @@ export function App(props: Props) {
   // Note: ?v==${Date.now()} is added to the url to force favicon refresh.
   // Without it browsers would cache the last used and won't change it for different realms
   // https://stackoverflow.com/questions/2208933/how-do-i-force-a-favicon-refresh
-  const faviconUrl =
-    symbol &&
-    `/realms/${getResourcePathPart(
-      symbol as string
-    )}/favicon.ico?v=${Date.now()}`
 
-  useEffect(() => {
-    if (realm?.pubkey) {
-      loadMarket(connection, connection.cluster)
+  const faviconUrl = useMemo(() => {
+    const symbol = router.query.symbol
+
+    if (!symbol || tryParsePublicKey(symbol as string) !== undefined) {
+      return null
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- TODO please fix, it can cause difficult bugs. You might wanna check out https://bobbyhadz.com/blog/react-hooks-exhaustive-deps for info. -@asktree
-  }, [connection.cluster, realm?.pubkey.toBase58()])
+    if (!isValidSymbol(symbol)) {
+      console.error('Invalid symbol')
+      return null
+    }
+
+    const resourcePath = getResourcePathPart(symbol as string)
+    const fullUrl = `${
+      window.location.origin
+    }/realms/${resourcePath}/favicon.ico?v=${Date.now()}`
+
+    // Check if the domain is in the allow list
+    try {
+      const urlObject = new URL(fullUrl)
+      if (!allowedDomains.includes(urlObject.origin)) {
+        console.error('Domain not in allowed list')
+        return null
+      }
+      // Check if the path is in the allow list
+      if (
+        !allowedFaviconPaths.some((path) => urlObject.pathname.startsWith(path))
+      ) {
+        console.error('Path not in allowed list')
+        return null
+      }
+
+      return urlObject.href
+    } catch (error) {
+      console.error('Invalid URL:', error)
+      return null
+    }
+  }, [router.query.symbol])
+
+  // Validate it's an ico file
+  function isValidSymbol(symbol) {
+    return (
+      typeof symbol === 'string' &&
+      symbol.trim() !== '' &&
+      /^[a-zA-Z0-9-_]+$/.test(symbol)
+    )
+  }
+  const { result: faviconExists } = useAsync(async () => {
+    if (!faviconUrl) {
+      return false
+    }
+
+    try {
+      const response = await fetch(faviconUrl)
+      return response.status === 200
+    } catch (error) {
+      console.error('Error fetching favicon:', error)
+      return false
+    }
+  }, [faviconUrl])
+
   useEffect(() => {
     if (
       realm &&
-      config?.account.communityTokenConfig.voterWeightAddin &&
-      vsrPluginsPks.includes(
-        config.account.communityTokenConfig.voterWeightAddin.toBase58()
-      ) &&
+      usesVsr &&
       realm.pubkey &&
       wallet?.connected &&
       ownTokenRecord &&
-      client
+      vsrClient
     ) {
       getOwnedDeposits({
-        realmPk: realm!.pubkey,
-        communityMintPk: realm!.account.communityMint,
+        realmPk: realm.pubkey,
+        communityMintPk: realm.account.communityMint,
         walletPk: ownTokenRecord!.account!.governingTokenOwner,
-        client: client!,
+        client: vsrClient,
         connection: connection.current,
       })
     } else if (!wallet?.connected || !ownTokenRecord) {
       resetDepositState()
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- TODO please fix, it can cause difficult bugs. You might wanna check out https://bobbyhadz.com/blog/react-hooks-exhaustive-deps for info. -@asktree
   }, [
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- TODO please fix, it can cause difficult bugs. You might wanna check out https://bobbyhadz.com/blog/react-hooks-exhaustive-deps for info. -@asktree
-    realm?.pubkey.toBase58(),
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- TODO please fix, it can cause difficult bugs. You might wanna check out https://bobbyhadz.com/blog/react-hooks-exhaustive-deps for info. -@asktree
-    ownTokenRecord?.pubkey.toBase58(),
+    config?.account.communityTokenConfig.voterWeightAddin,
+    connection,
+    getOwnedDeposits,
+    ownTokenRecord,
+    realm,
+    resetDepositState,
+    vsrClient,
     wallet?.connected,
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- TODO please fix, it can cause difficult bugs. You might wanna check out https://bobbyhadz.com/blog/react-hooks-exhaustive-deps for info. -@asktree
-    client?.program.programId.toBase58(),
   ])
 
   useEffect(() => {
-    if (
-      prevStringifyPossibleNftsAccounts !==
-        JSON.stringify(possibleNftsAccounts) &&
-      realm?.pubkey
-    ) {
-      getNfts(possibleNftsAccounts, connection)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- TODO please fix, it can cause difficult bugs. You might wanna check out https://bobbyhadz.com/blog/react-hooks-exhaustive-deps for info. -@asktree
-  }, [JSON.stringify(possibleNftsAccounts), realm?.pubkey.toBase58()])
-
-  useEffect(() => {
     updateSerumGovAccounts(cluster as string | undefined)
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- TODO please fix, it can cause difficult bugs. You might wanna check out https://bobbyhadz.com/blog/react-hooks-exhaustive-deps for info. -@asktree
-  }, [cluster])
+  }, [cluster, updateSerumGovAccounts])
 
   return (
     <div className="relative bg-bkg-1 text-fgd-1">
@@ -167,7 +240,7 @@ export function App(props: Props) {
             background-color: #17161c;
           }
         `}</style>
-        {faviconUrl ? (
+        {faviconUrl && faviconExists ? (
           <>
             <link rel="icon" href={faviconUrl} />
           </>
@@ -247,19 +320,15 @@ export function App(props: Props) {
       </Head>
       <GoogleTag />
       <ErrorBoundary>
-        <QueryClientProvider client={queryClient}>
-          <ThemeProvider defaultTheme="Dark">
-            <WalletIdentityProvider appName={'Realms'}>
-              <GatewayProvider>
-                <NavBar />
-                <Notifications />
-                <TransactionLoader></TransactionLoader>
-                <NftVotingCountingModal />
-                <PageBodyContainer>{props.children}</PageBodyContainer>
-              </GatewayProvider>
-            </WalletIdentityProvider>
-          </ThemeProvider>
-        </QueryClientProvider>
+        <ThemeProvider defaultTheme="Dark">
+          <GatewayProvider>
+            <NavBar />
+            <Notifications />
+            <TransactionLoader></TransactionLoader>
+            <NftVotingCountingModal />
+            <PageBodyContainer>{props.children}</PageBodyContainer>
+          </GatewayProvider>
+        </ThemeProvider>
       </ErrorBoundary>
     </div>
   )

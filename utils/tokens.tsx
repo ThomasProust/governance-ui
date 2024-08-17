@@ -7,7 +7,6 @@ import {
 } from '@solana/web3.js'
 import {
   AccountInfo,
-  AccountLayout,
   MintInfo,
   MintLayout,
   Token,
@@ -21,18 +20,11 @@ import { chunks } from './helpers'
 import { getAccountName, WSOL_MINT } from '@components/instructions/tools'
 import { formatMintNaturalAmountAsDecimal } from '@tools/sdk/units'
 import tokenPriceService from './services/tokenPrice'
-import { notify } from './notifications'
-import { BN } from '@project-serum/anchor'
+import { BN } from '@coral-xyz/anchor'
 import { abbreviateAddress } from './formatting'
 import BigNumber from 'bignumber.js'
 import { AssetAccount } from '@utils/uiTypes/assets'
-import { I80F48 } from '@blockworks-foundation/mango-client'
-import { NFTWithMeta } from './uiTypes/VotePlugin'
-import { ConnectionContext } from './connection'
-import {
-  HOLAPLEX_GRAPQL_URL_DEVNET,
-  HOLAPLEX_GRAPQL_URL_MAINNET,
-} from '@tools/constants'
+import { parseTokenAccountData } from './parseTokenAccountData'
 
 export type TokenAccount = AccountInfo
 export type MintAccount = MintInfo
@@ -46,10 +38,11 @@ export async function getOwnedTokenAccounts(
   connection: Connection,
   publicKey: PublicKey
 ): Promise<TokenProgramAccount<TokenAccount>[]> {
-  const results = await connection.getTokenAccountsByOwner(publicKey, {
+  const result = await connection.getTokenAccountsByOwner(publicKey, {
     programId: TOKEN_PROGRAM_ID,
   })
-  return results.value.map((r) => {
+
+  return result.value.map((r) => {
     const publicKey = r.pubkey
     const data = Buffer.from(r.account.data)
     const account = parseTokenAccountData(publicKey, data)
@@ -57,6 +50,7 @@ export async function getOwnedTokenAccounts(
   })
 }
 
+/** @deprecated -- use react-query by pubkey */
 export const getTokenAccountsByMint = async (
   connection: Connection,
   mint: string
@@ -82,6 +76,7 @@ export const getTokenAccountsByMint = async (
   })
 }
 
+/** @deprecated, probably */
 export async function tryGetMint(
   connection: Connection,
   publicKey: PublicKey
@@ -103,10 +98,7 @@ export async function tryGetMint(
   }
 }
 
-export const I80F48OptionalFromNumber = (val: number | undefined) => {
-  return val || val === 0 ? I80F48.fromNumber(val) : undefined
-}
-
+/** @deprecated -- use react-query by pubkey */
 export async function tryGetTokenAccount(
   connection: Connection,
   publicKey: PublicKey
@@ -130,6 +122,7 @@ export async function tryGetTokenAccount(
   }
 }
 
+/** @deprecated -- use react-query by pubkey */
 export async function tryGetTokenMint(
   connection: Connection,
   publicKey: PublicKey
@@ -139,50 +132,15 @@ export async function tryGetTokenMint(
 }
 
 // copied from @solana/spl-token
+/** @deprecated -- why? just import from spl-token? */
 export const TOKEN_PROGRAM_ID = new PublicKey(
   'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'
 )
 export const BPF_UPGRADE_LOADER_ID = new PublicKey(
   'BPFLoaderUpgradeab1e11111111111111111111111'
 )
-export function parseTokenAccountData(
-  account: PublicKey,
-  data: Buffer
-): TokenAccount {
-  const accountInfo = AccountLayout.decode(data)
-  accountInfo.address = account
-  accountInfo.mint = new PublicKey(accountInfo.mint)
-  accountInfo.owner = new PublicKey(accountInfo.owner)
-  accountInfo.amount = u64.fromBuffer(accountInfo.amount)
 
-  if (accountInfo.delegateOption === 0) {
-    accountInfo.delegate = null
-    accountInfo.delegatedAmount = new u64(0)
-  } else {
-    accountInfo.delegate = new PublicKey(accountInfo.delegate)
-    accountInfo.delegatedAmount = u64.fromBuffer(accountInfo.delegatedAmount)
-  }
-
-  accountInfo.isInitialized = accountInfo.state !== 0
-  accountInfo.isFrozen = accountInfo.state === 2
-
-  if (accountInfo.isNativeOption === 1) {
-    accountInfo.rentExemptReserve = u64.fromBuffer(accountInfo.isNative)
-    accountInfo.isNative = true
-  } else {
-    accountInfo.rentExemptReserve = null
-    accountInfo.isNative = false
-  }
-
-  if (accountInfo.closeAuthorityOption === 0) {
-    accountInfo.closeAuthority = null
-  } else {
-    accountInfo.closeAuthority = new PublicKey(accountInfo.closeAuthority)
-  }
-
-  return accountInfo
-}
-
+/** @deprecated -- why not just use the normal mint layout? */
 export function parseMintAccountData(data: Buffer): MintAccount {
   const mintInfo = MintLayout.decode(data)
   if (mintInfo.mintAuthorityOption === 0) {
@@ -258,6 +216,7 @@ export async function getMultipleAccountInfoChunked(
 }
 
 //TODO refactor both methods (getMintAccountLabelInfo, getTokenAccountLabelInfo) make it more common
+/** @deprecated */
 export function getTokenAccountLabelInfo(acc: AssetAccount | undefined) {
   let tokenAccount = ''
   let tokenName = ''
@@ -289,6 +248,7 @@ export function getTokenAccountLabelInfo(acc: AssetAccount | undefined) {
   }
 }
 
+/** @deprecated because i dont think i like the AssetAccount abstraction */
 export function getSolAccountLabel(acc: AssetAccount | undefined) {
   let tokenAccount = ''
   let tokenName = ''
@@ -319,6 +279,7 @@ export function getSolAccountLabel(acc: AssetAccount | undefined) {
   }
 }
 
+/** @deprecated because i dont think i like the AssetAccount abstraction */
 export function getMintAccountLabelInfo(acc: AssetAccount | undefined) {
   let account = ''
   let tokenName = ''
@@ -326,13 +287,11 @@ export function getMintAccountLabelInfo(acc: AssetAccount | undefined) {
   let amount = ''
   let imgUrl = ''
   if (acc?.extensions.mint && acc.governance) {
-    const info = tokenPriceService.getTokenInfo(
-      acc.governance.account.governedAccount.toBase58()
-    )
+    const info = tokenPriceService.getTokenInfo(acc.pubkey.toBase58())
     imgUrl = info?.logoURI ? info.logoURI : ''
-    account = acc.governance?.account.governedAccount.toBase58()
+    account = acc.pubkey.toBase58()
     tokenName = info?.name ? info.name : ''
-    mintAccountName = getAccountName(acc.governance.account.governedAccount)
+    mintAccountName = getAccountName(acc.pubkey)
     amount = formatMintNaturalAmountAsDecimal(
       acc.extensions.mint.account,
       acc?.extensions.mint.account.supply
@@ -347,116 +306,13 @@ export function getMintAccountLabelInfo(acc: AssetAccount | undefined) {
   }
 }
 
+/** @deprecated why? */
 export type AccountInfoGen<T> = {
   executable: boolean
   owner: PublicKey
   lamports: number
   data: T
   rentEpoch?: number
-}
-
-export const deserializeMint = (data: Buffer) => {
-  if (data.length !== MintLayout.span) {
-    throw new Error('Not a valid Mint')
-  }
-
-  const mintInfo = MintLayout.decode(data)
-
-  if (mintInfo.mintAuthorityOption === 0) {
-    mintInfo.mintAuthority = null
-  } else {
-    mintInfo.mintAuthority = new PublicKey(mintInfo.mintAuthority)
-  }
-
-  mintInfo.supply = u64.fromBuffer(mintInfo.supply)
-  mintInfo.isInitialized = mintInfo.isInitialized !== 0
-
-  if (mintInfo.freezeAuthorityOption === 0) {
-    mintInfo.freezeAuthority = null
-  } else {
-    mintInfo.freezeAuthority = new PublicKey(mintInfo.freezeAuthority)
-  }
-
-  return mintInfo as MintInfo
-}
-
-const fetchNftsFromHolaplexIndexer = async (
-  owner: PublicKey,
-  cluster: string
-) => {
-  const result = await fetch(
-    cluster === 'devnet'
-      ? HOLAPLEX_GRAPQL_URL_DEVNET
-      : HOLAPLEX_GRAPQL_URL_MAINNET,
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        query: `
-        query nfts($owners: [PublicKey!]) {
-            nfts(
-              owners: $owners,
-               limit: 10000, offset: 0) {
-              name
-              mintAddress
-              address
-              image
-              tokenAccountAddress
-              updateAuthorityAddress
-              collection {
-                creators {
-                  verified
-                  address
-                }
-                mintAddress
-              }
-
-            }
-
-        }
-      `,
-        variables: {
-          owners: [owner.toBase58()],
-        },
-      }),
-    }
-  )
-
-  const body = await result.json()
-  return body.data
-}
-
-export const getNfts = async (
-  ownerPk: PublicKey,
-  connection: ConnectionContext
-): Promise<NFTWithMeta[]> => {
-  return await getNftsFromHolaplex(ownerPk, connection)
-}
-
-const getNftsFromHolaplex = async (
-  ownerPk: PublicKey,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  connection: ConnectionContext
-): Promise<NFTWithMeta[]> => {
-  try {
-    const data = await fetchNftsFromHolaplexIndexer(ownerPk, connection.cluster)
-    return data.nfts.map((nft) => {
-      return {
-        ...nft,
-        getAssociatedTokenAccount: async () => {
-          return nft.tokenAccountAddress
-        },
-      }
-    })
-  } catch (error) {
-    notify({
-      type: 'error',
-      message: 'Unable to fetch nfts',
-    })
-  }
-  return []
 }
 
 export const parseMintSupplyFraction = (fraction: string) => {
@@ -474,10 +330,16 @@ export const parseMintSupplyFraction = (fraction: string) => {
   })
 }
 
-export const SCALED_FACTOR_SHIFT = 9
+const SCALED_FACTOR_SHIFT = 9
 
 export function getScaledFactor(amount: number) {
   return new BN(
     new BigNumber(amount.toString()).shiftedBy(SCALED_FACTOR_SHIFT).toString()
   )
+}
+
+export function getInverseScaledFactor(amount: BN) {
+  return new BigNumber(amount.toNumber())
+    .shiftedBy(-SCALED_FACTOR_SHIFT)
+    .toNumber()
 }

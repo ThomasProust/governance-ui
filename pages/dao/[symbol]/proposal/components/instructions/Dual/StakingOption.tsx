@@ -9,10 +9,20 @@ import { NewProposalContext } from '../../../new'
 import GovernedAccountSelect from '../../GovernedAccountSelect'
 import useGovernanceAssets from '@hooks/useGovernanceAssets'
 import Input from '@components/inputs/Input'
-import getConfigInstruction from '@utils/instructions/Dual'
-import useWalletStore from 'stores/useWalletStore'
+import { getConfigInstruction } from '@utils/instructions/Dual'
 import { getDualFinanceStakingOptionSchema } from '@utils/validations'
 import Tooltip from '@components/Tooltip'
+import useWalletOnePointOh from '@hooks/useWalletOnePointOh'
+import useLegacyConnectionContext from '@hooks/useLegacyConnectionContext'
+import { getTreasuryAccountItemInfoV2 } from '@utils/treasuryTools'
+
+interface MintMetadata {
+  logo: string,
+  name: string,
+  symbol: string,
+  displayPrice: string,
+  decimals: number,
+}
 
 const StakingOption = ({
   index,
@@ -24,47 +34,93 @@ const StakingOption = ({
   const [form, setForm] = useState<DualFinanceStakingOptionForm>({
     soName: undefined,
     optionExpirationUnixSeconds: 0,
-    numTokens: 0,
-    lotSize: 0,
+    numTokens: '0',
+    lotSize: 1,
     baseTreasury: undefined,
     quoteTreasury: undefined,
     payer: undefined,
     userPk: undefined,
     strike: 0,
   })
-  const connection = useWalletStore((s) => s.connection)
-  const wallet = useWalletStore((s) => s.current)
+  const connection = useLegacyConnectionContext()
+  const wallet = useWalletOnePointOh()
   const shouldBeGoverned = !!(index !== 0 && governance)
-  const { governedTokenAccountsWithoutNfts } = useGovernanceAssets()
+  const { assetAccounts } = useGovernanceAssets()
   const [governedAccount, setGovernedAccount] = useState<
     ProgramAccount<Governance> | undefined
   >(undefined)
 
   const [formErrors, setFormErrors] = useState({})
+
+  const [baseMetadata, setBaseMetadata] = useState<MintMetadata>()
+  const [quoteMetadata, setQuoteMetadata] = useState<MintMetadata>()
+
   const { handleSetInstructions } = useContext(NewProposalContext)
   const handleSetForm = ({ propertyName, value }) => {
     setFormErrors({})
     setForm({ ...form, [propertyName]: value })
   }
-  function getInstruction(): Promise<UiInstruction> {
-    return getConfigInstruction({
-      connection,
-      form,
-      schema,
-      setFormErrors,
-      wallet,
-    })
-  }
+  const schema = getDualFinanceStakingOptionSchema({form, connection});
   useEffect(() => {
+    function getInstruction(): Promise<UiInstruction> {
+      return getConfigInstruction({
+        connection,
+        form,
+        schema,
+        setFormErrors,
+        wallet,
+      })
+    }
     handleSetInstructions(
       { governedAccount: governedAccount, getInstruction },
       index
     )
-  }, [form])
+    if (form.baseTreasury && form.baseTreasury.extensions.mint && form.baseTreasury.extensions.mint.account.decimals) {
+      const {
+        logo,
+        name,
+        symbol,
+        displayPrice,
+      } = getTreasuryAccountItemInfoV2(form.baseTreasury)
+      setBaseMetadata({
+        logo,
+        name,
+        symbol,
+        displayPrice,
+        decimals: form.baseTreasury.extensions.mint.account.decimals
+      })
+    } else {
+      setBaseMetadata(undefined)
+    }
+    if (form.quoteTreasury && form.quoteTreasury.extensions.mint && form.quoteTreasury.extensions.mint.account.decimals) {
+      const {
+        logo,
+        name,
+        symbol,
+        displayPrice,
+      } = getTreasuryAccountItemInfoV2(form.quoteTreasury)
+      setQuoteMetadata({
+        logo,
+        name,
+        symbol,
+        displayPrice,
+        decimals: form.quoteTreasury.extensions.mint.account.decimals
+      })
+    } else {
+      setQuoteMetadata(undefined)
+    }
+  }, [
+    form,
+    governedAccount,
+    handleSetInstructions,
+    index,
+    connection,
+    schema,
+    wallet,
+  ])
   useEffect(() => {
     setGovernedAccount(form.baseTreasury?.governance)
   }, [form.baseTreasury])
-  const schema = getDualFinanceStakingOptionSchema()
 
   return (
     <>
@@ -85,27 +141,27 @@ const StakingOption = ({
       <Tooltip content="Treasury owned account providing the assets for the option. When the recipient exercises, these are the tokens they receive. For SOL/USDC Calls, enter SOL. For SOL/USDC Puts, enter USDC.">
         <GovernedAccountSelect
           label="Base Treasury"
-          governedAccounts={governedTokenAccountsWithoutNfts}
+          governedAccounts={assetAccounts}
           onChange={(value) => {
             handleSetForm({ value, propertyName: 'baseTreasury' })
           }}
           value={form.baseTreasury}
           error={formErrors['baseTreasury']}
-          shouldBeGoverned={shouldBeGoverned}
           governance={governance}
+          type="token"
         ></GovernedAccountSelect>
       </Tooltip>
       <Tooltip content="Treasury owned account receiving payment for the option exercise. This is where payments from exercise accumulate. For SOL/USDC Calls, enter USDC. For SOL/USDC Puts, enter SOL.">
         <GovernedAccountSelect
           label="Quote Treasury"
-          governedAccounts={governedTokenAccountsWithoutNfts}
+          governedAccounts={assetAccounts}
           onChange={(value) => {
             handleSetForm({ value, propertyName: 'quoteTreasury' })
           }}
           value={form.quoteTreasury}
           error={formErrors['quoteTreasury']}
-          shouldBeGoverned={shouldBeGoverned}
           governance={governance}
+          type="token"
         ></GovernedAccountSelect>
       </Tooltip>
       <Tooltip content="How many tokens are in the staking options. Units are in atoms of the base token.">
@@ -167,7 +223,7 @@ const StakingOption = ({
       <Tooltip content="Rent payer. Should be the governance wallet with same governance as base treasury">
         <GovernedAccountSelect
           label="Payer Account"
-          governedAccounts={governedTokenAccountsWithoutNfts.filter(
+          governedAccounts={assetAccounts.filter(
             (x) =>
               x.isSol &&
               form.baseTreasury?.governance &&
@@ -196,6 +252,31 @@ const StakingOption = ({
           error={formErrors['userPk']}
         />
       </Tooltip>
+      {baseMetadata && quoteMetadata && (
+        <>
+          <div className="p-3 border rounded-lg text-fgd-1 border-fgd-4 w-full">
+          {form.strike / form.lotSize * 10 ** (-quoteMetadata.decimals + baseMetadata.decimals) * (Number(form.numTokens) / 10 ** baseMetadata.decimals)}
+          <img
+            className={`h-6 w-6`}
+            src={quoteMetadata.logo}
+            onError={({ currentTarget }) => {
+              currentTarget.onerror = null // prevents looping
+              currentTarget.hidden = true
+            }}
+          />
+          =
+          {Number(form.numTokens) / 10 ** baseMetadata.decimals}
+          <img
+            className={`h-6 w-6`}
+            src={baseMetadata.logo}
+            onError={({ currentTarget }) => {
+              currentTarget.onerror = null // prevents looping
+              currentTarget.hidden = true
+            }}
+          />
+        </ div >
+        </>
+      )}
     </>
   )
 }

@@ -9,7 +9,7 @@ import {
   getSolAccountLabel,
   getTokenAccountLabelInfo,
 } from '@utils/tokens'
-import React, { cloneElement, useEffect, useContext, useState } from 'react'
+import { cloneElement, useEffect, useContext, useState } from 'react'
 import { AssetAccount, AccountType } from '@utils/uiTypes/assets'
 import UnselectedWalletIcon from '@components/treasuryV2/icons/UnselectedWalletIcon'
 import { abbreviateAddress } from '@utils/formatting'
@@ -31,6 +31,7 @@ import { AssetType } from 'models/treasury/Asset'
 import CommunityMintIcon from '@components/treasuryV2/icons/CommunityMintIcon'
 import CouncilMintIcon from '@components/treasuryV2/icons/CouncilMintIcon'
 import MintIcon from '@components/treasuryV2/icons/MintIcon'
+import { getAccountName } from '@components/instructions/tools'
 
 function exists<T>(item: T | null | undefined): item is T {
   return item !== null || item !== undefined
@@ -70,10 +71,10 @@ const GovernedAccountSelect = ({
   label?: string
   noMaxWidth?: boolean
   autoSelectFirst?: boolean
-  type?: 'mint' | 'token' | 'wallet'
+  type?: 'mint' | 'token' | 'wallet' | 'program'
 }) => {
   const realm = useRealm()
-  const treasuryInfo = useTreasuryInfo()
+  const treasuryInfo = useTreasuryInfo(false)
   const { voteByCouncil } = useContext(NewProposalContext)
   const [wallets, setWallets] = useState<
     {
@@ -92,9 +93,12 @@ const GovernedAccountSelect = ({
     {
       account: AssetAccount
       info:
-        | ReturnType<typeof getTokenAccountLabelInfo>
-        | ReturnType<typeof getSolAccountLabel>
+      | ReturnType<typeof getTokenAccountLabelInfo>
+      | ReturnType<typeof getSolAccountLabel>
     }[]
+  >([])
+  const [programs, setPrograms] = useState<
+    AssetAccount[]
   >([])
   const programId = realm.realmInfo?.programId
 
@@ -117,6 +121,11 @@ const GovernedAccountSelect = ({
             : getTokenAccountLabelInfo(account),
         }))
     )
+    setPrograms(
+      governedAccounts
+        .filter((account) => account.type === AccountType.PROGRAM)
+    )
+
 
     if (programId) {
       const governances = new Set<string>([])
@@ -131,7 +140,14 @@ const GovernedAccountSelect = ({
             programId,
             account.governance.pubkey
           ).then((walletAddress) => ({
-            account,
+            //if there is materialized wallet we want to have it as main account of deduped wallet
+            account: governedAccounts.find((x) =>
+              x.extensions.transferAddress?.equals(walletAddress)
+            )
+              ? governedAccounts.find((x) =>
+                x.extensions.transferAddress?.equals(walletAddress)
+              )!
+              : account,
             governance: account.governance.pubkey,
             walletAddress,
           }))
@@ -165,17 +181,17 @@ const GovernedAccountSelect = ({
       return null
     }
 
-    const accountName = value.isSol
+    const name = value.isSol
       ? getSolAccountLabel(value).tokenAccountName
       : value.isToken
-      ? getTokenAccountLabelInfo(value).tokenAccountName
-      : getMintAccountLabelInfo(value).mintAccountName
-
+        ? getTokenAccountLabelInfo(value).tokenAccountName
+        : getMintAccountLabelInfo(value).mintAccountName
+    const accountName = name ? name : getAccountName(wallet.walletAddress)
     const walletInfo = RE.isOk(treasuryInfo)
       ? treasuryInfo.data.wallets.find(
-          (wallet) =>
-            wallet.governanceAddress === value.governance.pubkey.toBase58()
-        )
+        (wallet) =>
+          wallet.governanceAddress === value.governance.pubkey.toBase58()
+      )
       : null
 
     return (
@@ -205,6 +221,63 @@ const GovernedAccountSelect = ({
               showRealmAuthority
               assets={walletInfo.assets}
               className="h-4"
+              governance={value.governance.pubkey}
+            />
+          </div>
+        ) : (
+          <div className={cx('flex flex-col items-end', selected && 'pr-2')}>
+            <div className="bg-bkg-2 px-2 py-1 rounded h-4 w-12 animate-pulse mb-1">
+              &nbsp;
+            </div>
+            <div className="bg-bkg-2 px-2 py-1 rounded h-4 w-16 animate-pulse">
+              &nbsp;
+            </div>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  function getProgramView(value?: AssetAccount | null, selected = false) {
+    if (!value) {
+      return null
+    }
+
+    const walletInfo = RE.isOk(treasuryInfo)
+      ? treasuryInfo.data.wallets.find(
+        (wallet) =>
+          wallet.governanceAddress === value.governance.pubkey.toBase58()
+      )
+      : null
+
+    const programName = getAccountName(value.pubkey)
+
+    return (
+      <div className="grid grid-cols-[40px,1fr,max-content] gap-x-4 text-fgd-1 items-center w-full">
+        <div>
+          <UnselectedWalletIcon className="h-10 w-10 stroke-white/50" />
+        </div>
+        <div>
+          <div className="mb-0.5 truncate w-full">
+            Program:{' '}
+            {programName ? programName : abbreviateAddress(value.pubkey)}
+          </div>
+
+          <div className="space-y-0.5 text-xs text-fgd-3">
+            <div>Rules: {abbreviateAddress(value.governance.pubkey)}</div>
+          </div>
+        </div>
+        {walletInfo ? (
+          <div className={cx('flex flex-col items-end', selected && 'pr-2')}>
+            <div className="font-bold text-white text-sm mb-1">
+              ${walletInfo.totalValue.toFormat(2)}
+            </div>
+            <AssetsPreviewIconList
+              showMints
+              showRealmAuthority
+              assets={walletInfo.assets}
+              className="h-4"
+              governance={value.governance.pubkey}
             />
           </div>
         ) : (
@@ -278,9 +351,9 @@ const GovernedAccountSelect = ({
 
     const walletInfo = RE.isOk(treasuryInfo)
       ? treasuryInfo.data.wallets.find(
-          (wallet) =>
-            wallet.governanceAddress === value.governance.pubkey.toBase58()
-        )
+        (wallet) =>
+          wallet.governanceAddress === value.governance.pubkey.toBase58()
+      )
       : null
 
     const mintInfo = walletInfo?.assets.find(
@@ -347,9 +420,9 @@ const GovernedAccountSelect = ({
 
   const walletInfo = RE.isOk(treasuryInfo)
     ? treasuryInfo.data.wallets.find(
-        (wallet) =>
-          wallet.governanceAddress === value?.governance.pubkey.toBase58()
-      )
+      (wallet) =>
+        wallet.governanceAddress === value?.governance.pubkey.toBase58()
+    )
     : null
 
   return (
@@ -361,43 +434,45 @@ const GovernedAccountSelect = ({
           type === 'token'
             ? getTokenView(value)
             : type === 'mint'
-            ? getMintView(value)
-            : getWalletView(value, true)
+              ? getMintView(value)
+              : type === 'program'
+                ? getProgramView(value, true)
+                : getWalletView(value, true)
         }
         placeholder="Please select..."
-        value={value?.governance?.account.governedAccount.toBase58()}
+        value={value?.pubkey}
         error={error}
         noMaxWidth={noMaxWidth}
       >
         {type === 'token'
           ? tokens
-              .filter((token) =>
-                !shouldBeGoverned
-                  ? !shouldBeGoverned
-                  : token.account?.governance?.pubkey.toBase58() ===
-                    governance?.pubkey?.toBase58()
-              )
-              .map((token) => {
-                const label = getTokenView(token.account)
+            .filter((token) =>
+              !shouldBeGoverned
+                ? !shouldBeGoverned
+                : token.account?.governance?.pubkey.toBase58() ===
+                governance?.pubkey?.toBase58()
+            )
+            .map((token) => {
+              const label = getTokenView(token.account)
 
-                return label ? (
-                  <Select.Option
-                    className="border-red"
-                    key={token.account.pubkey.toBase58()}
-                    value={token.account}
-                  >
-                    {label}
-                  </Select.Option>
-                ) : null
-              })
-              .filter(exists)
+              return label ? (
+                <Select.Option
+                  className="border-red"
+                  key={token.account.pubkey.toBase58()}
+                  value={token.account}
+                >
+                  {label}
+                </Select.Option>
+              ) : null
+            })
+            .filter(exists)
           : type === 'mint'
-          ? mints
+            ? mints
               .filter((mint) =>
                 !shouldBeGoverned
                   ? !shouldBeGoverned
                   : mint.account?.governance?.pubkey.toBase58() ===
-                    governance?.pubkey?.toBase58()
+                  governance?.pubkey?.toBase58()
               )
               .map((mint) => {
                 const label = getMintView(mint.account)
@@ -413,27 +488,50 @@ const GovernedAccountSelect = ({
                 ) : null
               })
               .filter(exists)
-          : wallets
-              .filter((wallet) =>
-                !shouldBeGoverned
-                  ? !shouldBeGoverned
-                  : wallet.account?.governance?.pubkey.toBase58() ===
-                    governance?.pubkey?.toBase58()
-              )
-              .map((wallet) => {
-                const label = getWalletView(wallet.account)
+            : type === 'program' ?
 
-                return label ? (
-                  <Select.Option
-                    className="border-red"
-                    key={wallet.account.pubkey.toBase58()}
-                    value={wallet.account}
-                  >
-                    {label}
-                  </Select.Option>
-                ) : null
-              })
-              .filter(exists)}
+              programs
+                .filter((program) =>
+                  !shouldBeGoverned
+                    ? !shouldBeGoverned
+                    : program.governance?.pubkey.toBase58() ===
+                    governance?.pubkey?.toBase58()
+                )
+                .map((program) => {
+                  const label = getProgramView(program)
+
+                  return label ? (
+                    <Select.Option
+                      className="border-red"
+                      key={program.pubkey.toBase58()}
+                      value={program}
+                    >
+                      {label}
+                    </Select.Option>
+                  ) : null
+                })
+                .filter(exists)
+              : wallets
+                .filter((wallet) =>
+                  !shouldBeGoverned
+                    ? !shouldBeGoverned
+                    : wallet.account?.governance?.pubkey.toBase58() ===
+                    governance?.pubkey?.toBase58()
+                )
+                .map((wallet) => {
+                  const label = getWalletView(wallet.account)
+
+                  return label ? (
+                    <Select.Option
+                      className="border-red"
+                      key={wallet.account.pubkey.toBase58()}
+                      value={wallet.account}
+                    >
+                      {label}
+                    </Select.Option>
+                  ) : null
+                })
+                .filter(exists)}
       </Select>
       {value && walletInfo && (
         <div className="text-white/50 max-w-lg mt-2">

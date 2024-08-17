@@ -1,16 +1,24 @@
+import { useRouteProposalQuery } from '@hooks/queries/proposal'
+import { useRealmQuery } from '@hooks/queries/realm'
 import {
-  useAddressQuery_CommunityTokenOwner,
-  useAddressQuery_CouncilTokenOwner,
-} from '@hooks/queries/addresses/tokenOwner'
-import { useAddressQuery_SelectedProposalVoteRecord } from '@hooks/queries/addresses/voteRecord'
-import { useVoteRecordByPubkeyQuery } from '@hooks/queries/voteRecord'
+  useUserCommunityTokenOwnerRecord,
+  useUserCouncilTokenOwnerRecord,
+} from '@hooks/queries/tokenOwnerRecord'
+import useRoleOfGovToken from '@hooks/selectedRealm/useRoleOfToken'
 import { useHasVoteTimeExpired } from '@hooks/useHasVoteTimeExpired'
-import useRealm from '@hooks/useRealm'
-import { ProposalState, GoverningTokenRole } from '@solana/spl-governance'
-import useWalletStore from 'stores/useWalletStore'
+import { useProposalGovernanceQuery } from '@hooks/useProposal'
+import {
+  ProposalState,
+  Proposal,
+  Governance,
+  VoteThresholdType,
+} from '@solana/spl-governance'
+import dayjs from 'dayjs'
+import { useMemo } from 'react'
 
 export const useIsVoting = () => {
-  const { governance, proposal } = useWalletStore((s) => s.selectedProposal)
+  const proposal = useRouteProposalQuery().data?.result
+  const governance = useProposalGovernanceQuery().data?.result
   const hasVoteTimeExpired = useHasVoteTimeExpired(governance, proposal!)
 
   const isVoting =
@@ -18,49 +26,88 @@ export const useIsVoting = () => {
   return isVoting
 }
 
+export const useIsInCoolOffTime = () => {
+  const proposal = useRouteProposalQuery().data?.result
+  const governance = useProposalGovernanceQuery().data?.result
+
+  return isInCoolOffTime(proposal?.account, governance?.account)
+}
+
+export const isInCoolOffTime = (
+  proposal: Proposal | undefined,
+  governance: Governance | undefined
+) => {
+  const mainVotingEndedAt = proposal?.signingOffAt
+    ?.addn(governance?.config.baseVotingTime || 0)
+    .toNumber()
+
+  const votingCoolOffTime = governance?.config.votingCoolOffTime || 0
+  const canFinalizeAt = mainVotingEndedAt
+    ? mainVotingEndedAt + votingCoolOffTime
+    : mainVotingEndedAt
+
+  const endOfProposalAndCoolOffTime = canFinalizeAt
+    ? dayjs(1000 * canFinalizeAt!)
+    : undefined
+
+  const isInCoolOffTime = endOfProposalAndCoolOffTime
+    ? dayjs().isBefore(endOfProposalAndCoolOffTime) &&
+      mainVotingEndedAt &&
+      dayjs().isAfter(mainVotingEndedAt * 1000)
+    : undefined
+
+  return !!isInCoolOffTime && proposal!.state !== ProposalState.Defeated
+}
+
 export const useVotingPop = () => {
-  const { tokenRole } = useWalletStore((s) => s.selectedProposal)
+  const proposal = useRouteProposalQuery().data?.result
+  const role = useRoleOfGovToken(proposal?.account.governingTokenMint)
 
-  const votingPop =
-    tokenRole === GoverningTokenRole.Community ? 'community' : 'council'
-
-  return votingPop
+  return role !== 'not found' ? role : undefined
 }
 
 export const useVoterTokenRecord = () => {
-  const { tokenRole } = useWalletStore((s) => s.selectedProposal)
-  const { ownTokenRecord, ownCouncilTokenRecord } = useRealm()
+  const votingPop = useVotingPop()
+  const ownTokenRecord = useUserCommunityTokenOwnerRecord().data?.result
+  const ownCouncilTokenRecord = useUserCouncilTokenOwnerRecord().data?.result
 
   const voterTokenRecord =
-    tokenRole === GoverningTokenRole.Community
-      ? ownTokenRecord
-      : ownCouncilTokenRecord
+    votingPop === 'community' ? ownTokenRecord : ownCouncilTokenRecord
   return voterTokenRecord
 }
 
-export const useProposalVoteRecordQuery = (quorum: 'electoral' | 'veto') => {
-  const tokenRole = useWalletStore((s) => s.selectedProposal.tokenRole)
-  const community = useAddressQuery_CommunityTokenOwner()
-  const council = useAddressQuery_CouncilTokenOwner()
+/*
+  returns: undefined if loading, false if nobody can veto, 'council' if council can veto, 'community' if community can veto
+*/
+export const useVetoingPop = () => {
+  const tokenRole = useVotingPop()
+  const governance = useProposalGovernanceQuery().data?.result
+  const realm = useRealmQuery().data?.result
+  const vetoingPop = useMemo(() => {
+    if (governance === undefined) return undefined
 
-  const electoral =
-    tokenRole === undefined
-      ? undefined
-      : tokenRole === GoverningTokenRole.Community
-      ? community
-      : council
-  const veto =
-    tokenRole === undefined
-      ? undefined
-      : tokenRole === GoverningTokenRole.Community
-      ? council
-      : community
+    return tokenRole === 'community'
+      ? governance?.account.config.councilVetoVoteThreshold.type !==
+          VoteThresholdType.Disabled &&
+        // if there is no council then there's not actually a vetoing population, in my opinion
+        realm?.account.config.councilMint !== undefined
+        ? 'council'
+        : undefined
+      : governance?.account.config.communityVetoVoteThreshold.type !==
+        VoteThresholdType.Disabled
+      ? 'community'
+      : undefined
+  }, [governance, tokenRole, realm?.account.config.councilMint])
 
-  const selectedTokenRecord = quorum === 'electoral' ? electoral : veto
+  return vetoingPop
+}
 
-  const pda = useAddressQuery_SelectedProposalVoteRecord(
-    selectedTokenRecord?.data
-  )
+export const useUserVetoTokenRecord = () => {
+  const ownTokenRecord = useUserCommunityTokenOwnerRecord().data?.result
+  const ownCouncilTokenRecord = useUserCouncilTokenOwnerRecord().data?.result
 
-  return useVoteRecordByPubkeyQuery(pda.data)
+  const vetoingPop = useVetoingPop()
+  const voterTokenRecord =
+    vetoingPop === 'community' ? ownTokenRecord : ownCouncilTokenRecord
+  return voterTokenRecord
 }

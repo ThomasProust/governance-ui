@@ -5,8 +5,7 @@ import {
   RpcContext,
   withExecuteTransaction,
 } from '@solana/spl-governance'
-import { Transaction, TransactionInstruction } from '@solana/web3.js'
-import { sendSignedTransaction, signTransaction } from '@utils/send'
+import { ComputeBudgetProgram, TransactionInstruction } from '@solana/web3.js'
 import {
   sendTransactionsV3,
   SequenceType,
@@ -31,19 +30,38 @@ export const executeInstructions = async (
         proposal.account.governance,
         proposal.pubkey,
         instruction.pubkey,
-        [instruction.account.getSingleInstruction()]
+        [...instruction.account.getAllInstructions()]
       )
     )
   )
-
   if (multiTransactionMode) {
     const txes = [...instructions.map((x) => [x])].map((txBatch, batchIdx) => {
+      const batchWithComputeBudget = [
+        ComputeBudgetProgram.setComputeUnitLimit({ units: 1_000_000 }),
+        ...txBatch,
+      ]
       return {
         instructionsSet: txBatchesToInstructionSetWithSigners(
-          txBatch,
+          batchWithComputeBudget,
           [],
           batchIdx
         ),
+        sequenceType: SequenceType.Sequential,
+      }
+    })
+    await sendTransactionsV3({
+      connection,
+      wallet,
+      transactionInstructions: txes,
+    })
+  } else {
+    const txes = [instructions].map((txBatch) => {
+      return {
+        instructionsSet: txBatch.map((x) => {
+          return {
+            transactionInstruction: x,
+          }
+        }),
         sequenceType: SequenceType.Sequential,
       }
     })
@@ -52,23 +70,6 @@ export const executeInstructions = async (
       connection,
       wallet,
       transactionInstructions: txes,
-    })
-  } else {
-    const transaction = new Transaction()
-
-    transaction.add(...instructions)
-    const signedTransaction = await signTransaction({
-      transaction,
-      wallet,
-      connection,
-      signers: [],
-    })
-
-    await sendSignedTransaction({
-      signedTransaction,
-      connection,
-      sendingMessage: 'Executing instruction',
-      successMessage: 'Execution finalized',
     })
   }
 }

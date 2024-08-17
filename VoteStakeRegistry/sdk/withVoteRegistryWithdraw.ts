@@ -4,7 +4,7 @@ import {
   Token,
   TOKEN_PROGRAM_ID,
 } from '@solana/spl-token'
-import { BN } from '@project-serum/anchor'
+import { BN } from '@coral-xyz/anchor'
 import {
   getRegistrarPDA,
   getVoterPDA,
@@ -49,13 +49,13 @@ export const withVoteRegistryWithdraw = async ({
   }
   const clientProgramId = client!.program.programId
 
-  const { registrar } = await getRegistrarPDA(
+  const { registrar } = getRegistrarPDA(
     realmPk,
     communityMintPk,
     client!.program.programId
   )
-  const { voter } = await getVoterPDA(registrar, walletPk, clientProgramId)
-  const { voterWeightPk } = await getVoterWeightPDA(
+  const { voter } = getVoterPDA(registrar, walletPk, clientProgramId)
+  const { voterWeightPk } = getVoterWeightPDA(
     registrar,
     walletPk,
     clientProgramId
@@ -97,7 +97,7 @@ export const withVoteRegistryWithdraw = async ({
       splProgramVersion,
       realmPk,
       walletPk,
-      mintPk,
+      communityMintPk,
       walletPk
     )
   }

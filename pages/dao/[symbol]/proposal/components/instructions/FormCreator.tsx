@@ -8,18 +8,11 @@ import Switch from '@components/Switch'
 import Select from '@components/inputs/Select'
 import { usePrevious } from '@hooks/usePrevious'
 import { DISABLED_VALUE } from '@tools/constants'
-
-export enum InstructionInputType {
-  GOVERNED_ACCOUNT,
-  INPUT,
-  TEXTAREA,
-  SWITCH,
-  SELECT,
-  DISABLEABLE_INPUT,
-}
+import { InstructionInputType } from './inputInstructionType'
 
 export interface InstructionInput {
   label: string
+  subtitle?: string
   initialValue: any
   name: string
   type: InstructionInputType
@@ -50,9 +43,9 @@ const InstructionForm = ({
   setFormErrors: React.Dispatch<React.SetStateAction<any>>
   formErrors
   setForm: React.Dispatch<React.SetStateAction<any>>
-  outerForm: any
+  outerForm: { [key: string]: any } | undefined
 }) => {
-  const [form, setInnerForm] = useState({})
+  const [form, setInnerForm] = useState(outerForm ? { ...outerForm } : {})
   const handleSetForm = ({ propertyName, value }) => {
     setFormErrors({})
     setInnerForm({ ...outerForm, [propertyName]: value })
@@ -60,10 +53,12 @@ const InstructionForm = ({
   const previousInitialValue = usePrevious(
     JSON.stringify(inputs.map((x) => x.initialValue))
   )
+
   useEffect(() => {
     setForm(form)
     // eslint-disable-next-line react-hooks/exhaustive-deps -- TODO please fix, it can cause difficult bugs. You might wanna check out https://bobbyhadz.com/blog/react-hooks-exhaustive-deps for info. -@asktree
   }, [JSON.stringify(form)])
+
   useEffect(() => {
     setInnerForm({
       ...inputs.reduce((a, v) => ({ ...a, [v.name]: v.initialValue }), {}),
@@ -129,6 +124,7 @@ const InstructionInput = ({
         return (
           <Select
             label={input.label}
+            subtitle={input.subtitle}
             // Note that this is different from native selects, which simply use the value as the value, not the name-value pair.
             value={form[input.name]?.name}
             placeholder="Please select..."
@@ -176,14 +172,28 @@ const InstructionInput = ({
         return (
           <Input
             min={input.min}
+            subtitle={input.subtitle}
             label={input.label}
             value={form[input.name]}
             type={input.inputType!}
             onChange={(event) => {
-              handleSetForm({
-                value: event.target.value,
-                propertyName: input.name,
-              })
+              if (input.inputType === 'number') {
+                const isNumber =
+                  event.target.value !== '' &&
+                  !isNaN(Number(event.target.value))
+
+                handleSetForm({
+                  value: isNumber
+                    ? Number(event.target.value)
+                    : event.target.value,
+                  propertyName: input.name,
+                })
+              } else {
+                handleSetForm({
+                  value: event.target.value,
+                  propertyName: input.name,
+                })
+              }
             }}
             step={input.step}
             error={formErrors[input.name]}
@@ -192,7 +202,7 @@ const InstructionInput = ({
                 ? input.onBlur
                 : input.validateMinMax
                 ? validateAmountOnBlur
-                : null
+                : undefined
             }
           />
         )
@@ -200,6 +210,7 @@ const InstructionInput = ({
       case InstructionInputType.TEXTAREA:
         return (
           <Textarea
+            subtitle={input.subtitle}
             label={input.label}
             placeholder={input.placeholder}
             wrapperClassName="mb-5"
@@ -217,6 +228,9 @@ const InstructionInput = ({
         return (
           <div className="text-sm mb-3">
             <div className="mb-2">{input.label}</div>
+            {input.subtitle && (
+              <p className="text-fgd-3 mb-1 -mt-2">{input.subtitle}</p>
+            )}
             <div className="flex flex-row text-xs items-center">
               <Switch
                 checked={form[input.name]}
@@ -296,7 +310,7 @@ const InstructionInput = ({
                           ? input.onBlur
                           : input.validateMinMax
                           ? validateAmountOnBlur
-                          : null
+                          : undefined
                       }
                     />
                   ) : (
