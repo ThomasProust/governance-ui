@@ -54,6 +54,16 @@ import VoteBySwitch from './components/VoteBySwitch'
 import CreateNftPluginRegistrar from './components/instructions/NftVotingPlugin/CreateRegistrar'
 import CreateNftPluginMaxVoterWeightRecord from './components/instructions/NftVotingPlugin/CreateMaxVoterWeightRecord'
 import ConfigureNftPluginCollection from './components/instructions/NftVotingPlugin/ConfigureCollection'
+import SwitchboardAdmitOracle from './components/instructions/Switchboard/AdmitOracle'
+import SwitchboardRevokeOracle from './components/instructions/Switchboard/RevokeOracle'
+import FriktionWithdraw from './components/instructions/Friktion/FriktionWithdraw'
+import FriktionClaimPendingDeposit from './components/instructions/Friktion/FriktionClaimPendingDeposit'
+import FriktionClaimPendingWithdraw from './components/instructions/Friktion/FriktionClaimPendingWithdraw'
+import CreateStream from './components/instructions/Streamflow/CreateStream'
+import CancelStream from './components/instructions/Streamflow/CancelStream'
+import MakeChangePerpMarket from './components/instructions/Mango/MakeChangePerpMarket'
+import MakeAddOracle from './components/instructions/Mango/MakeAddOracle'
+import MakeAddSpotMarket from './components/instructions/Mango/MakeAddSpotMarket'
 import SwitchboardFundOracle from './components/instructions/Switchboard/FundOracle'
 import WithdrawFromOracle from './components/instructions/Switchboard/WithdrawFromOracle'
 import StakeValidator from './components/instructions/Validators/StakeValidator'
@@ -486,6 +496,8 @@ const New = () => {
       [Instructions.MangoV4OpenBookRegisterMarket]: OpenBookRegisterMarket,
       [Instructions.MangoV4PerpCreate]: PerpCreate,
       [Instructions.MangoV4TokenRegisterTrustless]: TokenRegisterTrustless,
+      [Instructions.CreateStream]: CreateStream,
+      [Instructions.CancelStream]: CancelStream,
       [Instructions.MangoV4TokenAddBank]: TokenAddBank,
       [Instructions.Grant]: Grant,
       [Instructions.Clawback]: Clawback,

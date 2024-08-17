@@ -297,6 +297,8 @@ export enum Instructions {
   Base64,
   Burn,
   ChangeMakeDonation,
+  CreateStream,
+  CancelStream,
   Clawback,
   CloseTokenAccount,
   CloseMultipleTokenAccounts,
